@@ -984,14 +984,15 @@
             }
         }
 
-        // Periodically refresh data
         async function refreshDashboard() {
             try {
                 // 1. Fetch telemetry & audit logs
                 const response = await fetch('/api/data');
+                if (!response.ok) return;
                 const data = await response.json();
+                if (!data || !Array.isArray(data.telemetry)) return;
                 
-                const latest = data.telemetry[data.telemetry.length - 1];
+                const latest = data.telemetry.length > 0 ? data.telemetry[data.telemetry.length - 1] : null;
                 const nowSecs = Date.now() / 1000;
                 
                 // Determine connection & activity status
