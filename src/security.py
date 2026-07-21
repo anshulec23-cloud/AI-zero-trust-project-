@@ -102,6 +102,9 @@ def require_webview_token (f :Callable [...,Any ])->Callable [...,Any ]:
         if not os .environ .get ("AEGIS_DESKTOP_MODE"):
             return f (*args ,**kwargs )
 
+        from flask import session 
+        if session .get ("user_id"):
+            return f (*args ,**kwargs )
 
         try :
             import webview 
