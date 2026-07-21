@@ -663,9 +663,11 @@ def simulate_attack ():
 def get_data ():
     db =SessionLocal ()
 
-    telemetry =db .query (TelemetryLog ).filter (
-        TelemetryLog .is_simulated ==False
-    ).order_by (TelemetryLog .timestamp .desc ()).limit (50 ).all ()
+    data_mode = request .args .get ("mode","all")
+    query = db .query (TelemetryLog )
+    if data_mode == "real":
+        query = query .filter (TelemetryLog .is_simulated == False )
+    telemetry = query .order_by (TelemetryLog .timestamp .desc ()).limit (50 ).all ()
 
     audit_logs =db .query (AuditLog ).options (joinedload (AuditLog .user )).order_by (AuditLog .timestamp .desc ()).limit (30 ).all ()
 
