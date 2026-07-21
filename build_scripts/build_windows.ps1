@@ -5,4 +5,4 @@ Remove-Item -Recurse -Force dist -ErrorAction Ignore
 Write-Host "Running PyInstaller..."
 .venv\Scripts\pyinstaller.exe build_scripts\AegisICS.spec --noconfirm
 
-Write-Host "Build complete. Artifact is in dist\AegisICS"
+Write-Host "Build complete. Artifact is in dist\aegis.exe"

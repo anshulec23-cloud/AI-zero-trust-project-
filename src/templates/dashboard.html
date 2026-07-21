@@ -138,10 +138,9 @@
                     <div class="space-y-2">
                         <label class="block text-xs text-[#86868b] uppercase tracking-wider font-semibold">Select Device Port</label>
                         <div class="flex gap-2">
-                            <input type="text" id="com-port-select" list="com-port-options" class="w-full apple-input rounded-xl px-3 py-2.5 text-sm" placeholder="Select or type COM port...">
-                            <datalist id="com-port-options">
+                            <select id="com-port-select" class="w-full apple-input rounded-xl px-3 py-2.5 text-sm">
                                 <option value="MOCK">MOCK (Software Emulation)</option>
-                            </datalist>
+                            </select>
                             <button onclick="scanComPorts()" title="Scan for devices" class="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium px-4 py-2.5 rounded-xl transition duration-150">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                             </button>
@@ -511,16 +510,22 @@
             const viewMonitor = document.getElementById('view-monitor');
             const viewRisk = document.getElementById('view-risk');
 
+            if (!btnMonitor || !btnRisk || !viewMonitor || !viewRisk) return;
+
             if (tab === 'monitor') {
                 btnMonitor.className = "px-4 py-2 rounded-lg font-medium text-white bg-white/5 transition duration-150";
                 btnRisk.className = "px-4 py-2 rounded-lg font-medium text-[#86868b] hover:text-white transition duration-150";
                 viewMonitor.classList.remove('hidden');
                 viewRisk.classList.add('hidden');
+                viewMonitor.style.display = 'grid';
+                viewRisk.style.display = 'none';
             } else {
                 btnMonitor.className = "px-4 py-2 rounded-lg font-medium text-[#86868b] hover:text-white transition duration-150";
                 btnRisk.className = "px-4 py-2 rounded-lg font-medium text-white bg-white/5 transition duration-150";
                 viewMonitor.classList.add('hidden');
                 viewRisk.classList.remove('hidden');
+                viewMonitor.style.display = 'none';
+                viewRisk.style.display = 'grid';
             }
         }
 
@@ -813,14 +818,14 @@
                         'Content-Type': 'application/json',
                         'X-CSRF-Token': csrfToken
                     },
-                    body: JSON.stringify({ type })
+                    body: JSON.stringify({ type: type, csrf_token: csrfToken })
                 });
                 const result = await response.json();
                 if (result.success) {
                     showAlert(result.details, 'success');
                     refreshDashboard();
                 } else {
-                    showAlert(result.error, 'error');
+                    showAlert(result.error || 'Attack simulation rejected.', 'error');
                 }
             } catch (err) {
                 showAlert('Failed to trigger attack simulation.', 'error');
@@ -857,22 +862,22 @@
                     headers: { 'X-CSRF-Token': csrfToken }
                 });
                 const result = await response.json();
-                if (result.success) {
-                    const dataList = document.getElementById('com-port-options');
-                    // Keep MOCK, remove others
-                    dataList.innerHTML = '<option value="MOCK">MOCK (Software Emulation)</option>';
+                const selectEl = document.getElementById('com-port-select');
+                selectEl.innerHTML = '<option value="MOCK">MOCK (Software Emulation)</option>';
+                if (result.success && Array.isArray(result.ports)) {
                     if (result.ports.length === 0) {
-                        showAlert('No active COM ports detected. You can type it manually.', 'error');
+                        showAlert('No active COM ports detected. Selected MOCK mode.', 'error');
                     } else {
                         result.ports.forEach(port => {
                             const opt = document.createElement('option');
                             opt.value = port;
-                            dataList.appendChild(opt);
+                            opt.textContent = port;
+                            selectEl.appendChild(opt);
                         });
                         showAlert(`Found ${result.ports.length} port(s).`, 'success');
                     }
                 } else {
-                    showAlert(result.error, 'error');
+                    showAlert(result.error || 'Failed to list COM ports.', 'error');
                 }
             } catch (err) {
                 showAlert('Failed to scan COM ports.', 'error');
@@ -894,7 +899,7 @@
                         'Content-Type': 'application/json',
                         'X-CSRF-Token': csrfToken
                     },
-                    body: JSON.stringify({ port })
+                    body: JSON.stringify({ port, csrf_token: csrfToken })
                 });
                 const result = await response.json();
                 if (result.success) {
@@ -916,7 +921,8 @@
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-Token': csrfToken
-                    }
+                    },
+                    body: JSON.stringify({ csrf_token: csrfToken })
                 });
                 const result = await response.json();
                 if (result.success) {
@@ -932,19 +938,7 @@
 
         // Trigger PDF Report download (works in both browser and PyWebView)
         function downloadReport() {
-            fetch('/api/report/download')
-                .then(response => response.blob())
-                .then(blob => {
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'aegis_incident_report.pdf';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
-                })
-                .catch(() => showAlert('Failed to download PDF report.', 'error'));
+            window.location.href = '/api/report/download';
         }
 
         async function loadRules() {
