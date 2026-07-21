@@ -584,6 +584,7 @@ def simulate_attack ():
     db =SessionLocal ()
     user_id =session ["user_id"]
     location =session ["location"]
+    print(f"[AttackEngine] Executing attack simulation profile: '{attack_type}' for user {user_id}")
 
     if attack_type =="stuxnet":
 
