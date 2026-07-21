@@ -57,8 +57,8 @@ app .config ['SESSION_COOKIE_SECURE']=os .environ .get ("FLASK_SESSION_SECURE","
 
 
 DEVICE_KEYS ={
-"ESP32_001":os .environ .get ("DEVICE_KEY_ESP32_001",secrets .token_hex (16 )),
-"ESP32_002":os .environ .get ("DEVICE_KEY_ESP32_002",secrets .token_hex (16 )),
+"ESP32_001":get_device_key ("ESP32_001"),
+"ESP32_002":get_device_key ("ESP32_002"),
 }
 
 
@@ -436,6 +436,10 @@ def connect_com_port ():
 
 
         db =SessionLocal ()
+        dev_state =db .query (DeviceState ).filter_by (device_id ="ESP32_001").first ()
+        if dev_state and dev_state .is_isolated :
+            dev_state .is_isolated =False 
+
         audit =AuditLog (
         user_id =session .get ("user_id"),
         action ="CONNECT_COM_PORT",

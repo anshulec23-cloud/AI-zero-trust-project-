@@ -27,6 +27,19 @@ GITHUB_REPO :str ="anshulsc/aegis-ics"
 """GitHub repository identifier used for update checks."""
 
 
+DEFAULT_DEVICE_KEYS = {
+    "ESP32_001": "aegis_shared_esp32_001_secret_key_v2",
+    "ESP32_002": "aegis_shared_esp32_002_secret_key_v2",
+}
+
+def get_device_key(device_id: str = "ESP32_001") -> str:
+    """Return a consistent device HMAC pre-shared key across processes."""
+    env_key = os.environ.get(f"DEVICE_KEY_{device_id}")
+    if env_key:
+        return env_key
+    return DEFAULT_DEVICE_KEYS.get(device_id, "aegis_shared_default_secret_key_v2")
+
+
 
 
 

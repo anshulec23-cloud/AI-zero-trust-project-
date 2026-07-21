@@ -25,9 +25,11 @@ except ImportError :
 import secrets 
 import queue 
 
+from security import get_device_key 
+
 DEFAULT_GATEWAY_URL ="http://127.0.0.1:5000/api/telemetry"
 
-DEFAULT_DEVICE_KEY =os .environ .get ("DEVICE_KEY_ESP32_001",secrets .token_hex (16 ))
+DEFAULT_DEVICE_KEY = get_device_key ("ESP32_001")
 
 import threading 
 _gateway_stop_event =threading .Event ()

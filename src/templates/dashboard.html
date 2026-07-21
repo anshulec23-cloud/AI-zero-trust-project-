@@ -1021,8 +1021,8 @@
                     chartTitle.className = "text-sm font-semibold tracking-tight text-emerald-400 border-b border-white/5 pb-3 mb-5";
                 }
 
-                // If disconnected or inactive, freeze the graph completely by skipping updates
-                if (!isComDisconnected && !isDataInactive) {
+                // If connected and telemetry exists, update graph datasets
+                if (!isComDisconnected && data.telemetry.length > 0) {
                     // Update label arrays and datasets dynamically based on transmitted fields
                     const hasTemp = data.telemetry.some(t => t.temperature !== null && t.temperature !== undefined);
                     const hasPress = data.telemetry.some(t => t.pressure !== null && t.pressure !== undefined);
