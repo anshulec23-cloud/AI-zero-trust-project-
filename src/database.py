@@ -70,7 +70,47 @@ class Rule (Base ):
 engine =create_engine (DATABASE_URL ,connect_args ={"check_same_thread":False })
 SessionLocal =sessionmaker (autocommit =False ,autoflush =False ,bind =engine )
 
+def migrate_sqlite_schema ():
+    import sqlite3 
+    db_path =DATABASE_URL .replace ("sqlite:///","")
+    if os .path .exists (db_path ):
+        try :
+            conn =sqlite3 .connect (db_path )
+            cursor =conn .cursor ()
+            cols =cursor .execute ("PRAGMA table_info('telemetry_logs')").fetchall ()
+            needs_migration =any (row [1 ]in ("temperature","pressure","humidity")and row [3 ]==1 for row in cols )
+            if needs_migration :
+                print ("[Database] Migrating telemetry_logs table to support nullable sensor fields...")
+                cursor .execute ("""
+                CREATE TABLE IF NOT EXISTS telemetry_logs_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp FLOAT NOT NULL,
+                    device_id VARCHAR(50) NOT NULL,
+                    temperature FLOAT,
+                    pressure FLOAT,
+                    humidity FLOAT,
+                    vibration FLOAT,
+                    hall_effect FLOAT,
+                    current FLOAT,
+                    rssi FLOAT,
+                    is_anomaly BOOLEAN DEFAULT 0,
+                    is_simulated BOOLEAN DEFAULT 0
+                );
+                """)
+                cursor .execute ("""
+                INSERT INTO telemetry_logs_new (id, timestamp, device_id, temperature, pressure, humidity, vibration, hall_effect, current, rssi, is_anomaly, is_simulated)
+                SELECT id, timestamp, device_id, temperature, pressure, humidity, vibration, hall_effect, current, rssi, is_anomaly, is_simulated FROM telemetry_logs;
+                """)
+                cursor .execute ("DROP TABLE telemetry_logs;")
+                cursor .execute ("ALTER TABLE telemetry_logs_new RENAME TO telemetry_logs;")
+                conn .commit ()
+                print ("[Database] Schema migration complete.")
+            conn .close ()
+        except Exception as e :
+            print (f"[Database] Auto-migration note: {e }")
+
 def init_db ():
+    migrate_sqlite_schema ()
     Base .metadata .create_all (bind =engine )
     db =SessionLocal ()
     try :

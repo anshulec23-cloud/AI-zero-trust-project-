@@ -29,7 +29,7 @@ def _resource_path (relative_path :str )->str :
         return os .path .join (sys ._MEIPASS ,relative_path )
     return os .path .join (os .path .dirname (os .path .abspath (__file__ )),relative_path )
 
-from security import require_webview_token 
+from security import require_webview_token ,get_device_key 
 
 
 init_db ()
@@ -45,7 +45,7 @@ app .secret_key =os .environ .get ("FLASK_SECRET_KEY",os .urandom (32 ).hex ())
 limiter =Limiter (
 get_remote_address ,
 app =app ,
-default_limits =["200 per day","50 per hour"],
+default_limits =[]if os .environ .get ("AEGIS_DESKTOP_MODE")else ["200 per day","50 per hour"],
 storage_uri ="memory://"
 )
 
