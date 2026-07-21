@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZT ICS Architecture — Bubbles</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a18;padding:1.5rem;max-width:820px;margin:0 auto}
+h1{font-size:16px;font-weight:500;margin-bottom:4px;color:#1a1a18}
+.subtitle{font-size:12px;color:#888780;margin-bottom:1.5rem}
+.arch{padding:.5rem 0}
+.layer{margin-bottom:4px}
+.layer-label{font-size:11px;color:#888780;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;padding-left:2px;display:flex;align-items:center;gap:5px}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
+.layer-row{display:flex;gap:6px}
+.node{flex:1;background:#f1efe8;border:0.5px solid rgba(0,0,0,0.12);border-radius:8px;padding:9px 11px;cursor:pointer;transition:border-color .15s,background .15s;position:relative;min-width:0}
+.node:hover{border-color:rgba(0,0,0,0.25);background:#fff}
+.node.active{background:#fff}
+.node-title{font-size:12px;font-weight:500;color:#1a1a18;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node-sub{font-size:11px;color:#888780;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.flow{display:flex;align-items:center;gap:6px;height:18px;margin:1px 0}
+.flow-line{flex:1;height:0.5px;background:rgba(0,0,0,0.12)}
+.flow-label{font-size:10px;color:#888780;white-space:nowrap;padding:0 4px}
+@keyframes pulse{0%,100%{opacity:.3;transform:translateY(0)}50%{opacity:1;transform:translateY(1px)}}
+.flow-arrow{font-size:11px;color:#888780;animation:pulse 1.8s ease-in-out infinite;flex-shrink:0}
+.panel{background:#fff;border:0.5px solid rgba(0,0,0,0.2);border-radius:12px;padding:1rem 1.25rem;margin-top:10px}
+.panel-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
+.panel-title{font-size:14px;font-weight:500;color:#1a1a18}
+.panel-layer{font-size:10px;color:#888780;padding:2px 7px;border-radius:10px;border:0.5px solid rgba(0,0,0,0.12);white-space:nowrap;margin-top:2px}
+.panel-desc{font-size:12px;color:#5f5e5a;line-height:1.65;margin-bottom:10px}
+.panel-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.pi{background:#f1efe8;border-radius:8px;padding:7px 9px}
+.pi-label{font-size:10px;color:#888780;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+.pi-val{font-size:11px;color:#1a1a18;line-height:1.5}
+.ask-btn{margin-top:10px;font-size:11px;color:#5f5e5a;background:none;border:0.5px solid rgba(0,0,0,0.2);border-radius:8px;padding:5px 10px;cursor:default;width:100%;text-align:left}
+.l-present .node{border-left:2px solid #993C1D}
+.l-intel .node{border-left:2px solid #BA7517}
+.l-zt .node{border-left:2px solid #534AB7}
+.l-comms .node{border-left:2px solid #185FA5}
+.l-field .node{border-left:2px solid #0F6E56}
+</style>
+</head>
+<body>
+<h1>AI Zero Trust Cybersecurity — ICS Architecture</h1>
+<p class="subtitle">Click any component to expand details &nbsp;·&nbsp; 5 layers &nbsp;·&nbsp; 15 components</p>
+<div class="arch">
+<div class="layer l-present">
+  <div class="layer-label"><span class="dot" style="background:#993C1D"></span>Presentation layer</div>
+  <div class="layer-row">
+    <div class="node" onclick="show('dashboard',this)"><div class="node-title">24/7 Dashboard</div><div class="node-sub">Real-time device monitoring</div></div>
+    <div class="node" onclick="show('ai-assistant',this)"><div class="node-title">AI Assistant</div><div class="node-sub">Qwen3 4B · incident guidance</div></div>
+    <div class="node" onclick="show('emergency',this)"><div class="node-title">Emergency Protocols</div><div class="node-sub">One-click incident response</div></div>
+  </div>
+</div>
+<div class="flow"><div class="flow-line"></div><span class="flow-arrow">▼</span><div class="flow-label">alerts · status · commands</div><div class="flow-line"></div></div>
+<div class="layer l-intel">
+  <div class="layer-label"><span class="dot" style="background:#BA7517"></span>Intelligence layer</div>
+  <div class="layer-row">
+    <div class="node" onclick="show('rf-model',this)"><div class="node-title">Random Forest ML</div><div class="node-sub">Anomaly detection model</div></div>
+    <div class="node" onclick="show('ai-engine',this)"><div class="node-title">AI Engine</div><div class="node-sub">4-param trust scoring</div></div>
+    <div class="node" onclick="show('rule-engine',this)"><div class="node-title">Rule-based Fallback</div><div class="node-sub">Deterministic enforcement</div></div>
+  </div>
+</div>
+<div class="flow"><div class="flow-line"></div><span class="flow-arrow">▼</span><div class="flow-label">trust scores · anomaly flags</div><div class="flow-line"></div></div>
+<div class="layer l-zt">
+  <div class="layer-label"><span class="dot" style="background:#534AB7"></span>Zero trust enforcement layer</div>
+  <div class="layer-row">
+    <div class="node" onclick="show('microseg',this)"><div class="node-title">Micro-segmentation</div><div class="node-sub">Automatic device isolation</div></div>
+    <div class="node" onclick="show('policy',this)"><div class="node-title">Policy Engine</div><div class="node-sub">ZT rules · privilege prevention</div></div>
+    <div class="node" onclick="show('audit',this)"><div class="node-title">Audit &amp; Log Store</div><div class="node-sub">Telemetry · auth · events</div></div>
+  </div>
+</div>
+<div class="flow"><div class="flow-line"></div><span class="flow-arrow">▼</span><div class="flow-label">authenticated MQTT · TLS</div><div class="flow-line"></div></div>
+<div class="layer l-comms">
+  <div class="layer-label"><span class="dot" style="background:#185FA5"></span>Communication layer</div>
+  <div class="layer-row">
+    <div class="node" onclick="show('mqtt',this)"><div class="node-title">MQTT Broker</div><div class="node-sub">3 topic channels · TLS</div></div>
+    <div class="node" onclick="show('auth',this)"><div class="node-title">Auth Gateway</div><div class="node-sub">CA · server · device certs</div></div>
+    <div class="node" onclick="show('hmac',this)"><div class="node-title">HMAC Validator</div><div class="node-sub">Per-device integrity check</div></div>
+  </div>
+</div>
+<div class="flow"><div class="flow-line"></div><span class="flow-arrow">▼</span><div class="flow-label">signed telemetry · sensor data</div><div class="flow-line"></div></div>
+<div class="layer l-field">
+  <div class="layer-label"><span class="dot" style="background:#0F6E56"></span>Field device layer</div>
+  <div class="layer-row">
+    <div class="node" onclick="show('esp32',this)"><div class="node-title">ESP32 Device (Simulated)</div><div class="node-sub">Python MQTT publisher</div></div>
+    <div class="node" onclick="show('sensors',this)"><div class="node-title">Sensor Array</div><div class="node-sub">Temp · pressure · stability</div></div>
+    <div class="node" onclick="show('device-policy',this)"><div class="node-title">Device-side Policy</div><div class="node-sub">Validates server commands</div></div>
+  </div>
+</div>
+<div id="panel" style="display:none" class="panel">
+  <div class="panel-header"><div class="panel-title" id="p-title"></div><div class="panel-layer" id="p-layer"></div></div>
+  <div class="panel-desc" id="p-desc"></div>
+  <div class="panel-grid" id="p-grid"></div>
+  <div class="ask-btn" id="p-btn"></div>
+</div>
+</div>
+<script>
+const D={
+'dashboard':{title:'24/7 Monitoring Dashboard',layer:'Presentation',desc:'Persistent web UI showing real-time state of every ICS device. Displays live telemetry, trust scores, anomaly flags, and isolation events. Designed so a non-expert engineer understands system state immediately.',items:[['Updates','Real-time via MQTT WebSocket subscription'],['Key metrics','Trust score, anomaly rate, device state, sensor values'],['ZT role','Full visibility — no blind spots in the network'],['Stack','Python Flask + WebSocket or Node.js + React']]},
+'ai-assistant':{title:'AI Assistant (Qwen3 4B)',layer:'Presentation',desc:'On-demand chat embedded in the dashboard. When an alert fires, the operator clicks AI, describes the situation, and receives plain-language step-by-step remediation. Inspired by WannaCry — NHS staff had no guidance during the attack.',items:[['Model','Qwen3 4B on Victus RTX 3050 via Ollama'],['Context','Current alert + device ID + recent telemetry + logs'],['Output','Numbered plain-language remediation steps'],['Fallback','Works offline — no cloud dependency']]},
+'emergency':{title:'Emergency Protocol Engine',layer:'Presentation',desc:'Pre-defined response playbooks triggered in one click. Each maps to a specific scenario: poisoned data, privilege escalation, sensor flatline. Directly inspired by the Stuxnet attack on Iran.',items:[['Trigger types','Anomaly breach, manual operator, AI recommendation'],['Actions','Isolate device, revoke token, freeze control channel'],['Playbooks','Stuxnet-type, WannaCry-type, sensor spoofing, DoS'],['ZT role','Enforcement — decisions become real network actions']]},
+'rf-model':{title:'Random Forest ML Model',layer:'Intelligence',desc:'Trained anomaly detection model on sensor telemetry (temperature, pressure). Classifies each incoming reading in real time. Runs entirely on the Optiplex Linux server — no cloud required.',items:[['Algorithm','Random Forest ensemble of decision trees'],['Training data','Temperature + pressure — labeled normal/anomaly'],['Input','Live telemetry stream from MQTT broker'],['Output','Anomaly flag + confidence score per reading']]},
+'ai-engine':{title:'AI Engine — 4-Parameter Scoring',layer:'Intelligence',desc:'Core intelligence of the zero-trust decision system. The RF model handles anomaly frequency. The engine handles the other three parameters and combines all four into a unified trust score.',items:[['Param 1','Anomaly frequency — RF model output over time window'],['Param 2','Signature checks — HMAC message integrity history'],['Param 3','Time logs — behavior vs historical baseline'],['Param 4','Sensor stability — variance of consecutive readings']]},
+'rule-engine':{title:'Rule-based Fallback Engine',layer:'Intelligence',desc:'Deterministic backup when AI engine is unavailable or uncertain. Explicit threshold rules based on trust score, anomaly frequency, and telemetry scale. System degrades gracefully.',items:[['Trigger','AI confidence below threshold OR service down'],['Sample rule','trust_score < 0.4 AND anomaly_freq > 3/min → isolate'],['Advantage','Explainable, auditable, no ML dependency'],['ZT role','Enforcement continues regardless of AI availability']]},
+'microseg':{title:'Micro-segmentation Engine',layer:'ZT Enforcement',desc:'Instead of shutting down a compromised device (dangerous in ICS), it isolates it from the network while keeping it running. Three distinct isolation triggers.',items:[['Trigger 1','Poisoned or anomalous telemetry detected by ML model'],['Trigger 2','Device becomes uncontrollable — control channel fails'],['Trigger 3','Alert threshold exceeded AND operator cannot resolve'],['Action','Revoke MQTT token, block topic ACL, flag in dashboard']]},
+'policy':{title:'Zero Trust Policy Engine',layer:'ZT Enforcement',desc:'Enforces system-wide behavioral rules for ALL nodes — including the server. If the server sends an out-of-range command, devices reject it. The server is also untrusted.',items:[['Rule 1','No device can acquire admin privileges over another'],['Rule 2','Server commands outside operating range are rejected'],['Rule 3','Isolated devices require manual re-auth to rejoin'],['ZT principle','Never trust, always verify — including the control server']]},
+'audit':{title:'Audit & Log Store',layer:'ZT Enforcement',desc:'Persistent structured storage of all system events. Three log types for compliance and forensic analysis. Critical for the arXiv paper — provides the evidence trail.',items:[['Telemetry logs','All sensor readings with timestamps and device IDs'],['Auth logs','Certificate events, HMAC failures, token revocations'],['Anomaly logs','ML flags, trust score changes, isolation events'],['Format','Structured JSON — queryable for research analysis']]},
+'mqtt':{title:'MQTT Broker (Micro-segmented)',layer:'Communication',desc:'Standard MQTT broker with topic-level ACL implementing micro-segmentation at the protocol layer. Three channels enforce data separation.',items:[['Channel 1','ics/telemetry/# — sensor data, server read-only'],['Channel 2','ics/control/# — commands to devices, server write-only'],['Channel 3','ics/alerts/# — device-initiated alerts upward'],['Security','TLS 1.3 + per-device ACL + token-based auth']]},
+'auth':{title:'Authentication Gateway',layer:'Communication',desc:'Two-tier self-signed certificate setup for mutual authentication. No paid CA required — you generate your own root with OpenSSL. Before any device can publish or subscribe to MQTT, it must present a valid certificate.',items:[['Root cert','Self-signed with OpenSSL — free, generated locally'],['Server cert','Signed by your root — devices verify the server'],['Device cert','Per-device cert signed by root — server verifies each'],['ZT principle','Mutual auth — neither side trusts the other implicitly']]},
+'hmac':{title:'HMAC Telemetry Validator',layer:'Communication',desc:'Every telemetry message is signed with a device-specific HMAC key before transmission. Server validates before processing. Detects tampering and replay attacks.',items:[['Algorithm','HMAC-SHA256'],['Key storage','Unique key per device (simulated in Python)'],['Detects','Tampering, replay attacks, spoofed messages'],['Failure action','Drop message + log auth failure + raise alert']]},
+'esp32':{title:'ESP32 Device (Simulated)',layer:'Field',desc:'Python script that simulates ESP32 behavior: generates sensor telemetry, signs with HMAC, publishes to MQTT over TLS. Occasional injected anomalies test the detection pipeline.',items:[['Implementation','Python paho-mqtt client script'],['Data','Realistic temp/pressure with noise + injected anomalies'],['Authentication','Client cert + HMAC on every message'],['Runs on','Optiplex Linux server or separate VM']]},
+'sensors':{title:'Sensor Array (Simulated)',layer:'Field',desc:'Simulated temperature and pressure readings with configurable anomaly injection. Sensor stability — rolling variance of readings — is one of the four AI engine parameters.',items:[['Temperature','Gaussian noise around normal setpoint'],['Pressure','Gaussian noise around normal setpoint'],['Stability metric','Rolling variance of consecutive readings'],['Anomaly injection','Spike, drift, flatline, noise burst modes']]},
+'device-policy':{title:'Device-side Policy Engine',layer:'Field',desc:'Lightweight rule checker in the simulated device. Every server command is validated against pre-configured operating ranges BEFORE execution. Server compromise does not cascade to devices.',items:[['Example','Allowed setpoint: 0–50°C. Server sends 100°C → rejected'],['Purpose','Server compromise does not cascade to field devices'],['ZT insight','Zero trust means zero trust — including your own server'],['Implementation','Python dict config loaded on simulator start']]}
+};
+let active=null;
+const esc=(v)=>String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
+function show(id,el){
+  if(active===id){document.getElementById('panel').style.display='none';active=null;document.querySelectorAll('.node').forEach(n=>n.classList.remove('active'));return;}
+  active=id;
+  document.querySelectorAll('.node').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+  const d=D[id];
+  document.getElementById('p-title').textContent=d.title;
+  document.getElementById('p-layer').textContent=d.layer+' layer';
+  document.getElementById('p-desc').textContent=d.desc;
+  document.getElementById('p-grid').innerHTML=d.items.map(i=>`<div class="pi"><div class="pi-label">${esc(i[0])}</div><div class="pi-val">${esc(i[1])}</div></div>`).join('');
+  document.getElementById('p-btn').textContent='Component: '+d.title+' — ask Claude how to build this';
+  document.getElementById('panel').style.display='block';
+}
+</script>
+</body>
+</html>

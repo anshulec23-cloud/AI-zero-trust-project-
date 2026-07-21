@@ -1,0 +1,16 @@
+Flask==3.0.3
+SQLAlchemy==2.0.31
+paho-mqtt==2.1.0
+alembic==1.13.2
+reportlab==5.0.0
+pywebview==6.2.1
+pyserial==3.5
+scikit-learn>=1.5.0
+requests==2.32.3
+cryptography==44.0.0
+werkzeug>=3.0.0
+Flask-Limiter
+bleach
+pystray
+pillow
+pytest

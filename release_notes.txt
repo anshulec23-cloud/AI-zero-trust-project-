@@ -1,0 +1,21 @@
+# Aegis ICS v2.2.1 - Hardware Connection & Stability Update
+
+This release addresses critical hardware connection stability and introduces a manual COM port connection interface.
+
+## Key Changes
+- **"Dead Bug" Fix:** Refactored PySerial initialization in `serial_gateway.py` to disable DTR and RTS signals before opening the port. This prevents connected ESP32 boards from entering a continuous reset loop when the software connects.
+- **Manual COM Port Connection UI:** Disabled the risky automatic port scanning on startup. Added a new "Hardware Connection" panel to the dashboard where operators can securely scan for devices, select a specific COM port, and connect/disconnect manually.
+- **Dynamic Thread Management:** The backend now controls the telemetry ingestion daemon via new REST APIs, allowing the user to seamlessly switch devices without restarting the application.
+
+### 🚀 Key Features & Changes
+- **Standalone Executable**: The entire software suite is now bundled into a single `AegisICS.exe` binary. No external dependencies, Python installation, or batch scripts (`aegis.bat`) are required for the end user.
+- **Hardware Serial Integration**: Added built-in automatic COM port detection for ESP32/PLC edge devices in `launcher.py`, spinning up the Serial Gateway in the background automatically.
+- **Security Hardening**: The PyWebView frontend UI is now cryptographically locked to the Flask backend using an ephemeral `X-PYWEBVIEW-TOKEN`. Direct access to the backend API from external browsers is blocked.
+- **Dependency Optimization**: `Pillow` and `pystray` were gracefully removed to resolve Python 3.14 native C++ compilation errors, ensuring stable PyInstaller builds. The Scikit-Learn version constraint was unpinned.
+- **Deprecation Fixes**: Upgraded timestamp usages in `database.py` and `app.py` from `datetime.utcnow()` to timezone-aware UTC objects to fix Python 3.12+ warnings.
+
+### 🐛 Bug Fixes
+- Fixed an issue where PyInstaller would fail to bundle `pywebview` due to upstream dependency compilation errors.
+- Cleaned up obsolete `start.ps1` and `aegis.bat` launcher methods.
+
+**Compare**: You can compare these changes with the previous `v2.1.0` release tag to see the exact code differences in the hardware integration and PyInstaller configuration.

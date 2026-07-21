@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aegis SCADA Terminal — Live Overview</title>
+    <!-- CSRF Token Meta -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #000000;
+            color: #f5f5f7;
+        }
+        .apple-card {
+            background-color: rgba(22, 22, 23, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .apple-border {
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .apple-input {
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #f5f5f7;
+            transition: all 0.2s ease;
+        }
+        .apple-input:focus {
+            border-color: rgba(255, 255, 255, 0.3);
+            background-color: rgba(255, 255, 255, 0.06);
+            outline: none;
+        }
+        .apple-btn {
+            background-color: #ffffff;
+            color: #000000;
+            transition: all 0.2s ease;
+        }
+        .apple-btn:hover {
+            background-color: #e8e8ed;
+        }
+        /* Custom scrollbar for minimalist scroll style */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col p-6 sm:p-10 select-none">
+
+    <!-- Minimal Header -->
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-white/10 pb-6 mb-8 gap-4">
+        <div>
+            <h1 class="text-2xl font-medium tracking-tight text-white">Aegis SCADA Overview</h1>
+            <p class="text-xs text-[#86868b] mt-1 font-light tracking-wide">STATUS: SECURE DEPLOYMENT LOOP · STUXNET ENFORCEMENT ENGINE ACTIVE</p>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-6">
+            <!-- Tabs Menu -->
+            <nav class="flex gap-1 bg-white/[0.02] border border-white/5 p-1 rounded-xl text-xs">
+                <button id="tab-btn-monitor" onclick="switchTab('monitor')" class="px-4 py-2 rounded-lg font-medium text-white bg-white/5 transition duration-150">
+                    SCADA Monitor
+                </button>
+                <button id="tab-btn-risk" onclick="switchTab('risk')" class="px-4 py-2 rounded-lg font-medium text-[#86868b] hover:text-white transition duration-150">
+                    Breach & Risk Projections
+                </button>
+            </nav>
+
+            <!-- Download PDF Incident Report -->
+            <button onclick="downloadReport()" class="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium px-4 py-2 rounded-xl text-xs transition duration-150 flex items-center gap-2">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Download PDF Incident Report
+            </button>
+
+            <div class="flex flex-wrap items-center gap-6 text-xs bg-white/[0.02] border border-white/5 px-5 py-3 rounded-xl">
+                <div class="flex items-center gap-2">
+                    <span class="text-[#86868b] font-light">Operator:</span>
+                    <span class="text-white font-medium">{{ username }}</span>
+                </div>
+                <div class="h-4 w-[1px] bg-white/10"></div>
+                <div class="flex items-center gap-2">
+                    <span class="text-[#86868b] font-light">Coords:</span>
+                    <span class="text-white font-mono font-medium">{{ location }}</span>
+                </div>
+                <div class="h-4 w-[1px] bg-white/10"></div>
+                <a href="/logout" class="text-red-400 hover:text-red-300 transition font-medium">Disconnect</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Alert Banner System -->
+    <div id="alert-banner" class="hidden text-xs px-5 py-4 rounded-xl mb-6 font-light transition duration-300"></div>
+
+    <!-- Update Notification Banner (injected by auto-updater) -->
+    <div id="update-banner" class="hidden text-xs px-5 py-4 rounded-xl mb-6 font-light bg-sky-500/10 border border-sky-500/30 text-sky-200 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <svg class="w-4 h-4 text-sky-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            <span id="update-banner-text">A new version is available.</span>
+        </div>
+        <div class="flex items-center gap-3">
+            <a id="update-banner-link" href="#" target="_blank" class="bg-sky-500/20 hover:bg-sky-500/30 px-3 py-1.5 rounded-lg text-sky-100 font-medium transition">Download</a>
+            <button onclick="document.getElementById('update-banner').classList.add('hidden')" class="text-sky-400/60 hover:text-sky-300 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN SCADA MONITOR VIEW -->
+    <div id="view-monitor" class="grid grid-cols-1 xl:grid-cols-3 gap-8 flex-grow">
+        
+        <!-- Left Side: Hardware Connection, Setpoint Inputs, Safety Thresholds, and Manual Isolation -->
+        <div class="space-y-8 xl:col-span-1">
+            
+            <!-- Hardware Connection Card -->
+            <div class="apple-card rounded-2xl p-6 shadow-lg">
+                <h2 class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
+                    Hardware Connection
+                </h2>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-[#86868b]">Active Port:</span>
+                        <span id="active-com-port" class="font-medium px-2 py-1 rounded text-amber-400 bg-amber-500/10 border border-amber-500/30">DISCONNECTED</span>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label class="block text-xs text-[#86868b] uppercase tracking-wider font-semibold">Select Device Port</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="com-port-select" list="com-port-options" class="w-full apple-input rounded-xl px-3 py-2.5 text-sm" placeholder="Select or type COM port...">
+                            <datalist id="com-port-options">
+                                <option value="MOCK">MOCK (Software Emulation)</option>
+                            </datalist>
+                            <button onclick="scanComPorts()" title="Scan for devices" class="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium px-4 py-2.5 rounded-xl transition duration-150">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-3 pt-2 border-t border-white/5">
+                        <button onclick="connectComPort()" class="flex-1 bg-white text-black hover:bg-[#e8e8ed] py-2.5 rounded-xl text-xs font-semibold tracking-wide transition duration-150">
+                            Connect
+                        </button>
+                        <button onclick="disconnectComPort()" class="flex-1 bg-red-600 hover:bg-red-500 text-white py-2.5 rounded-xl text-xs font-semibold tracking-wide transition duration-150">
+                            Disconnect
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Setpoint Control Card -->
+            <div class="apple-card rounded-2xl p-6 shadow-lg">
+                <h2 class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
+                    Setpoint Commands
+                </h2>
+                
+                <div class="space-y-6">
+                    <!-- Temperature Input -->
+                    <div class="space-y-2">
+                        <label class="block text-xs text-[#86868b] uppercase tracking-wider font-semibold">Temperature (C)</label>
+                        <div class="flex gap-3">
+                            <input type="number" id="temp-input" class="w-full apple-input rounded-xl px-4 py-2.5 text-sm" placeholder="e.g. 40.0" step="0.1">
+                            <button onclick="updateSetpoint('set_temp')" class="apple-btn text-xs font-medium px-5 py-2.5 rounded-xl">
+                                Dispatch
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-[#86868b] leading-relaxed">
+                            System boundary: max 60.0°C. Stuxnet correlation: constrained &lt; 45.0°C if pressure is &gt;= 6.0 bar.
+                        </p>
+                    </div>
+
+                    <!-- Pressure Input -->
+                    <div class="space-y-2">
+                        <label class="block text-xs text-[#86868b] uppercase tracking-wider font-semibold">Pressure (bar)</label>
+                        <div class="flex gap-3">
+                            <input type="number" id="pressure-input" class="w-full apple-input rounded-xl px-4 py-2.5 text-sm" placeholder="e.g. 5.0" step="0.1">
+                            <button onclick="updateSetpoint('set_pressure')" class="apple-btn text-xs font-medium px-5 py-2.5 rounded-xl">
+                                Dispatch
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-[#86868b] leading-relaxed">
+                            System boundary: max 8.0 bar. Stuxnet correlation: constrained &lt; 6.0 bar if temperature is &gt;= 45.0°C.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manual Device Isolation Card -->
+            <div class="apple-card rounded-2xl p-6 shadow-lg">
+                <h2 class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
+                    Device Network Isolation
+                </h2>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-[#86868b]">ESP32_001 Status:</span>
+                        <span id="device-isolation-status" class="font-medium px-2 py-1 rounded text-[#86868b] bg-white/5 border border-white/10">PENDING...</span>
+                    </div>
+                    <p class="text-[10px] text-[#86868b] leading-relaxed">
+                        Isolating the device drops all incoming commands and blocks operator setpoints immediately. Isolation triggers automatically on signature anomalies.
+                    </p>
+                    <button id="isolation-toggle-btn" onclick="toggleIsolation()" class="w-full bg-red-600 hover:bg-red-500 text-white py-2.5 rounded-xl text-xs font-semibold tracking-wide transition duration-150">
+                        Manual Isolate Device
+                    </button>
+                </div>
+            </div>
+
+            <!-- Active Safeguard Threshold Rules -->
+            <div class="apple-card rounded-2xl p-6 shadow-lg">
+                <h2 class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
+                    Safeguard Boundaries
+                </h2>
+                <div class="space-y-3 text-xs font-light">
+                    <div class="flex justify-between items-center py-1 border-b border-white/5">
+                        <span class="text-[#86868b]">Max Temp (°C):</span>
+                        <input type="number" id="rule-temp-max" class="w-20 apple-input rounded px-2 py-1 text-right font-mono" step="0.1">
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-white/5">
+                        <span class="text-[#86868b]">Min Temp (°C):</span>
+                        <input type="number" id="rule-temp-min" class="w-20 apple-input rounded px-2 py-1 text-right font-mono" step="0.1">
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-white/5">
+                        <span class="text-[#86868b]">Max Pressure (bar):</span>
+                        <input type="number" id="rule-pressure-max" class="w-20 apple-input rounded px-2 py-1 text-right font-mono" step="0.1">
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-white/5">
+                        <span class="text-[#86868b]">Min Pressure (bar):</span>
+                        <input type="number" id="rule-pressure-min" class="w-20 apple-input rounded px-2 py-1 text-right font-mono" step="0.1">
+                    </div>
+                    <button onclick="saveRules()" class="w-full mt-2 bg-white text-black hover:bg-[#e8e8ed] py-2 rounded-xl text-xs font-semibold tracking-wide transition duration-150">
+                        Save Safeguard Rules
+                    </button>
+                    <div class="text-[10px] text-[#86868b] leading-relaxed mt-2 pt-2 border-t border-white/5">
+                        * Dynamic enforcer intercepts telemetry command loop in real time to prevent coordinated attacks.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Analytics, Statistics and System Logs -->
+        <div class="xl:col-span-2 space-y-8 flex flex-col">
+            
+            <!-- Statistics Derivations Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="apple-card rounded-2xl p-5 flex flex-col justify-between shadow-md">
+                    <span class="text-[10px] text-[#86868b] uppercase tracking-wider font-semibold">Mean Temp (30s)</span>
+                    <span id="stat-temp-mean" class="text-2xl font-medium text-white mt-2 font-mono">--.- °C</span>
+                </div>
+                <div class="apple-card rounded-2xl p-5 flex flex-col justify-between shadow-md">
+                    <span class="text-[10px] text-[#86868b] uppercase tracking-wider font-semibold">Temp Variance (30s)</span>
+                    <span id="stat-temp-var" class="text-2xl font-medium text-white mt-2 font-mono">--.--</span>
+                </div>
+                <div class="apple-card rounded-2xl p-5 flex flex-col justify-between shadow-md">
+                    <span class="text-[10px] text-[#86868b] uppercase tracking-wider font-semibold">Temp Drift (30s)</span>
+                    <span id="stat-temp-drift" class="text-2xl font-medium text-white mt-2 font-mono">--.- °C/m</span>
+                </div>
+                <div class="apple-card rounded-2xl p-5 flex flex-col justify-between shadow-md">
+                    <span class="text-[10px] text-[#86868b] uppercase tracking-wider font-semibold">Pearson Corr (r)</span>
+                    <span id="stat-pearson-r" class="text-2xl font-medium text-white mt-2 font-mono">--.--</span>
+                </div>
+            </div>
+
+            <!-- Physical Sensors Realtime Gauges Grid -->
+            <div class="grid grid-cols-3 gap-4">
+                <div class="apple-card rounded-2xl p-5 flex flex-col justify-between shadow-md">
+                    <span class="text-[10px] text-sky-400 uppercase tracking-wider font-semibold">Vibration</span>
+                    <span id="stat-vibration" class="text-2xl font-medium text-white mt-2 font-mono">--.- g</span>
+                </div>
+                <div class="apple-card rounded-2xl p-5 flex flex-col justify-between shadow-md">
+                    <span class="text-[10px] text-emerald-400 uppercase tracking-wider font-semibold">Hall Effect Speed</span>
+                    <span id="stat-hall" class="text-2xl font-medium text-white mt-2 font-mono">---- RPM</span>
+                </div>
+                <div class="apple-card rounded-2xl p-5 flex flex-col justify-between shadow-md">
+                    <span class="text-[10px] text-pink-400 uppercase tracking-wider font-semibold">CT Current</span>
+                    <span id="stat-current" class="text-2xl font-medium text-white mt-2 font-mono">--.- A</span>
+                </div>
+            </div>
+
+            <!-- Chart Panel -->
+            <div class="apple-card rounded-2xl p-6 shadow-lg flex-grow flex flex-col">
+                <h2 id="chart-title-status" class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
+                    Real-time Sensor Telemetry
+                </h2>
+                <div class="relative w-full h-72 md:h-80 flex-grow">
+                    <canvas id="telemetryChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Audit Logs Panel -->
+            <div class="apple-card rounded-2xl p-6 shadow-lg max-h-96 overflow-y-auto">
+                <h2 class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
+                    Security Audit Trail
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left">
+                        <thead>
+                            <tr class="text-[#86868b] border-b border-white/10 uppercase tracking-wider font-semibold text-[10px]">
+                                <th class="py-2 pr-4">Timestamp</th>
+                                <th class="py-2 pr-4">Operator</th>
+                                <th class="py-2 pr-4">Action</th>
+                                <th class="py-2 pr-4">Location (X,Y,Z)</th>
+                                <th class="py-2">System Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-table-body" class="divide-y divide-white/5">
+                            <!-- Filled dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BREACH AND RISK PROJECTIONS VIEW -->
+    <div id="view-risk" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow">
+        
+        <!-- Left Side: Risk Index & Expected Loss Projections -->
+        <div class="space-y-8 lg:col-span-1">
+            <!-- Expected Loss Card -->
+            <div class="apple-card rounded-2xl p-6 shadow-lg">
+                <h2 class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
+                    Financial Projections & Damages
+                </h2>
+                <div class="space-y-6">
+                    <div class="text-center py-2">
+                        <p class="text-[10px] text-[#86868b] uppercase tracking-wider font-semibold">Active Projections (Expected Loss)</p>
+                        <p id="risk-expected-loss" class="text-3xl font-bold text-white mt-1 font-mono">$0.00</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 border-t border-white/5 pt-4 text-center">
+                        <div>
+                            <p class="text-[9px] text-[#86868b] uppercase tracking-wider font-semibold">Incurred Loss So Far</p>
+                            <p id="risk-incurred-loss" class="text-lg font-semibold text-red-400 mt-1 font-mono">$0.00</p>
+                        </div>
+                        <div>
+                            <p class="text-[9px] text-[#86868b] uppercase tracking-wider font-semibold">Damages Prevented</p>
+                            <p id="risk-prevented-loss" class="text-lg font-semibold text-emerald-400 mt-1 font-mono">$0.00</p>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-[#86868b] leading-relaxed text-center font-light pt-2">
+                        Includes triage overhead ($5,000/breach), casing rupture replacement ($250,000), and process downtime savings ($150,000).
+                    </p>
+                </div>
+            </div>
+
+            <!-- Real-time Breach Risk Index -->
+            <div class="apple-card rounded-2xl p-6 shadow-lg">
+                <h2 class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
+                    Threat Index
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-[#86868b]">Breach Probability:</span>
+                            <span id="risk-pct-label" class="text-white font-medium font-mono">0%</span>
+                        </div>
+                        <div class="w-full bg-white/5 h-2 rounded-full overflow-hidden">
+                            <div id="risk-bar" class="bg-white h-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-white/5 pt-4 text-xs font-light space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-[#86868b]">Thermal Drift Risk:</span>
+                            <span id="risk-drift-level" class="text-white font-mono font-medium">0.0%</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-[#86868b]">Sensor Decorrelation Risk:</span>
+                            <span id="risk-corr-level" class="text-white font-mono font-medium">0.0%</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-[#86868b]">Boundary Proximity Level:</span>
+                            <span id="risk-boundary-level" class="text-white font-mono font-medium">0.0%</span>
+                        </div>
+                    </div>
+            </div>
+
+            <!-- Attack Simulation Center -->
+            <div class="apple-card rounded-2xl p-6 shadow-lg">
+                <h2 class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
+                    Attack Simulation Center
+                </h2>
+                <div class="space-y-4">
+                    <p class="text-[10px] text-[#86868b] leading-relaxed">
+                        Trigger simulated cyberattacks to verify real-time classification, enforcer blocking, auto-isolation, and financial calculations.
+                    </p>
+                    <div class="space-y-2">
+                        <button onclick="triggerAttack('stuxnet')" class="w-full bg-white/5 hover:bg-white/10 text-white py-2 rounded-xl text-xs font-medium border border-white/10 transition duration-150">
+                            Simulate Stuxnet Attack
+                        </button>
+                        <button onclick="triggerAttack('injection')" class="w-full bg-white/5 hover:bg-white/10 text-white py-2 rounded-xl text-xs font-medium border border-white/10 transition duration-150">
+                            Simulate Telemetry Injection
+                        </button>
+                        <button onclick="triggerAttack('privilege')" class="w-full bg-white/5 hover:bg-white/10 text-white py-2 rounded-xl text-xs font-medium border border-white/10 transition duration-150">
+                            Simulate Privilege Escalation
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Cyberattack Vectors Details -->
+        <div class="lg:col-span-2 space-y-8">
+            <!-- Attack Vector Breakdown -->
+            <div class="apple-card rounded-2xl p-6 shadow-lg">
+                <h2 class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
+                    Cybersecurity Breach Attack Vectors
+                </h2>
+
+                <div class="space-y-6 text-xs font-light">
+                    <!-- Vector 1: Stuxnet Coordinated Stress -->
+                    <div class="p-4 bg-white/[0.02] border border-white/5 rounded-xl space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-white font-medium text-sm">V1: Coordinated Stress Attack (Stuxnet-style)</span>
+                            <span class="text-red-400 font-mono font-semibold">Severity: CRITICAL</span>
+                        </div>
+                        <p class="text-[#86868b] leading-relaxed">
+                            **Mechanism**: Attackers push temperature setpoint high while pressure is already high to rupture the physical system casing, while feeding falsified normal sensor data to operators.
+                        </p>
+                        <p class="text-[#86868b] leading-relaxed">
+                            **Aegis Mitigation**: AI-policy enforcer checks cross-correlation rules in real-time, blocking dispatch of temp setpoint changes if pressure is high (and vice versa) regardless of operator clearance.
+                        </p>
+                    </div>
+
+                    <!-- Vector 2: Telemetry Injection & Spoofing -->
+                    <div class="p-4 bg-white/[0.02] border border-white/5 rounded-xl space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-white font-medium text-sm">V2: Telemetry Ingest & Replay Attack</span>
+                            <span class="text-amber-400 font-mono font-semibold">Severity: HIGH</span>
+                        </div>
+                        <p class="text-[#86868b] leading-relaxed">
+                            **Mechanism**: Hijacking communication layers to inject fake telemetry packets, triggering unnecessary system shutdowns or masking physical damages.
+                        </p>
+                        <p class="text-[#86868b] leading-relaxed">
+                            **Aegis Mitigation**: Telemetry payloads utilize strict HMAC-SHA256 signature verification matching float canonicalized representations.
+                        </p>
+                    </div>
+
+                    <!-- Vector 3: Privilege Escalation -->
+                    <div class="p-4 bg-white/[0.02] border border-white/5 rounded-xl space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-white font-medium text-sm">V3: Session Hijacking & Credential Spraying</span>
+                            <span class="text-slate-400 font-mono font-semibold">Severity: MEDIUM</span>
+                        </div>
+                        <p class="text-[#86868b] leading-relaxed">
+                            **Mechanism**: Attacking weak web interfaces using brute-force token requests, session hijacking, or cross-site request forgery (CSRF).
+                        </p>
+                        <p class="text-[#86868b] leading-relaxed">
+                            **Aegis Mitigation**: Multi-layered protection: login sliding-window rate limit (5 attempts/min), HttpOnly session cookies, SameSite=Strict enforcement, and dynamic CSRF token verification for all commands.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Block for Charts & Stats -->
+    <script>
+        // Global fetch interceptor to automatically add PyWebView token and CSRF token
+        const originalFetch = window.fetch;
+        window.fetch = async function (url, options = {}) {
+            if (!options.headers) {
+                options.headers = {};
+            }
+            if (window.pywebview && window.pywebview.token) {
+                options.headers['X-PYWEBVIEW-TOKEN'] = window.pywebview.token;
+            }
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            if (csrfMeta && !options.headers['X-CSRF-Token']) {
+                options.headers['X-CSRF-Token'] = csrfMeta.getAttribute('content');
+            }
+            return originalFetch(url, options);
+        };
+
+        let currentDeviceIsolated = false;
+        let activeComPort = null;
+        let initialized = false;
+
+        function initialize() {
+            if (initialized) return;
+            initialized = true;
+            fetchComPortStatus();
+            loadRules();
+            refreshDashboard();
+            setInterval(refreshDashboard, 2000);
+        }
+
+        // On load, fetch status
+        if (window.pywebview) {
+            initialize();
+        } else {
+            window.addEventListener('pywebviewready', initialize);
+            window.addEventListener('DOMContentLoaded', () => {
+                setTimeout(initialize, 500);
+            });
+        }
+
+        // Tab Navigation
+        function switchTab(tab) {
+            const btnMonitor = document.getElementById('tab-btn-monitor');
+            const btnRisk = document.getElementById('tab-btn-risk');
+            const viewMonitor = document.getElementById('view-monitor');
+            const viewRisk = document.getElementById('view-risk');
+
+            if (tab === 'monitor') {
+                btnMonitor.className = "px-4 py-2 rounded-lg font-medium text-white bg-white/5 transition duration-150";
+                btnRisk.className = "px-4 py-2 rounded-lg font-medium text-[#86868b] hover:text-white transition duration-150";
+                viewMonitor.classList.remove('hidden');
+                viewRisk.classList.add('hidden');
+            } else {
+                btnMonitor.className = "px-4 py-2 rounded-lg font-medium text-[#86868b] hover:text-white transition duration-150";
+                btnRisk.className = "px-4 py-2 rounded-lg font-medium text-white bg-white/5 transition duration-150";
+                viewMonitor.classList.add('hidden');
+                viewRisk.classList.remove('hidden');
+            }
+        }
+
+        // HTML Escaping Utility for XSS Prevention
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        const ctx = document.getElementById('telemetryChart').getContext('2d');
+        const telemetryChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Temperature (°C)',
+                        data: [],
+                        borderColor: '#ffffff',
+                        backgroundColor: 'transparent',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        tension: 0.1,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Pressure (bar)',
+                        data: [],
+                        borderColor: '#86868b',
+                        backgroundColor: 'transparent',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        borderDash: [3, 3],
+                        tension: 0.1,
+                        yAxisID: 'y1'
+                    },
+                    {
+                        label: 'Vibration (g)',
+                        data: [],
+                        borderColor: '#38bdf8',
+                        backgroundColor: 'transparent',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        tension: 0.1,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Hall RPM / 100',
+                        data: [],
+                        borderColor: '#34d399',
+                        backgroundColor: 'transparent',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        tension: 0.1,
+                        yAxisID: 'y1'
+                    },
+                    {
+                        label: 'CT Current (A)',
+                        data: [],
+                        borderColor: '#f472b6',
+                        backgroundColor: 'transparent',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        tension: 0.1,
+                        yAxisID: 'y'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.03)' },
+                        ticks: { font: { size: 10 }, color: '#86868b' }
+                    },
+                    y: {
+                        position: 'left',
+                        grid: { color: 'rgba(255, 255, 255, 0.03)' },
+                        ticks: { font: { size: 10 }, color: '#ffffff' }
+                    },
+                    y1: {
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        ticks: { font: { size: 10 }, color: '#86868b' }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: { font: { size: 11 }, color: '#f5f5f7' }
+                    }
+                }
+            }
+        });
+
+        // Dispatch Control Commands
+        async function updateSetpoint(type) {
+            const inputId = type === 'set_temp' ? 'temp-input' : 'pressure-input';
+            const valEl = document.getElementById(inputId);
+            const value = parseFloat(valEl.value);
+            if (isNaN(value)) {
+                showAlert('Setpoint must be a valid numeric value.', 'error');
+                return;
+            }
+
+            // Get CSRF Token from meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+            try {
+                const response = await fetch('/api/setpoint', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({ type, value })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert(result.details, 'success');
+                    valEl.value = '';
+                } else {
+                    showAlert(result.error, 'error');
+                }
+            } catch (err) {
+                showAlert('Failed to contact SCADA backend.', 'error');
+            }
+        }
+
+        function showAlert(msg, status) {
+            const banner = document.getElementById('alert-banner');
+            banner.classList.remove('hidden', 'bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-200', 'bg-red-500/10', 'border-red-500/30', 'text-red-200');
+            if (status === 'success') {
+                banner.classList.add('bg-emerald-500/10', 'border', 'border-emerald-500/30', 'text-emerald-200');
+            } else {
+                banner.classList.add('bg-red-500/10', 'border', 'border-red-500/30', 'text-red-200');
+            }
+            banner.innerHTML = escapeHTML(msg);
+            setTimeout(() => banner.classList.add('hidden'), 8000);
+        }
+
+        // Live calculation of statistical derivatives & threat indices
+        function calculateStats(telemetry) {
+            if (telemetry.length === 0) return;
+            
+            // Filter to rows with non-null temperature and pressure
+            const validTelemetry = telemetry.filter(t => t.temperature !== null && t.temperature !== undefined && t.pressure !== null && t.pressure !== undefined);
+            if (validTelemetry.length < 2) {
+                document.getElementById('stat-temp-mean').innerHTML = 'N/A';
+                document.getElementById('stat-temp-var').innerHTML = 'N/A';
+                document.getElementById('stat-temp-drift').innerHTML = 'N/A';
+                document.getElementById('stat-pearson-r').innerHTML = 'N/A';
+                return;
+            }
+            
+            const temps = validTelemetry.map(t => t.temperature);
+            const pressures = validTelemetry.map(t => t.pressure);
+            const times = validTelemetry.map(t => t.timestamp);
+            
+            const n = validTelemetry.length;
+            
+            // 1. Mean
+            const tempMean = temps.reduce((a, b) => a + b, 0) / n;
+            document.getElementById('stat-temp-mean').innerHTML = `${tempMean.toFixed(1)} °C`;
+            
+            // 2. Variance (Sample Variance n-1 to address code review issue)
+            const divisor = n > 1 ? n - 1 : 1;
+            const tempVar = temps.reduce((a, b) => a + Math.pow(b - tempMean, 2), 0) / divisor;
+            document.getElementById('stat-temp-var').innerHTML = tempVar.toFixed(3);
+            
+            // 3. Drift Rate (Temperature Delta per Minute)
+            let tempDrift = 0;
+            if (n >= 15) {
+                const latestTemp = temps[n - 1];
+                const olderTemp = temps[n - 15]; 
+                const timeDiffMins = (times[n - 1] - times[n - 15]) / 60;
+                
+                tempDrift = (latestTemp - olderTemp) / (timeDiffMins || 1.0);
+                const driftText = `${tempDrift.toFixed(2)} °C/m`;
+                document.getElementById('stat-temp-drift').innerHTML = driftText;
+                
+                if (Math.abs(tempDrift) > 3.0) {
+                    document.getElementById('stat-temp-drift').className = "text-2xl font-medium font-mono text-red-400 mt-2";
+                } else {
+                    document.getElementById('stat-temp-drift').className = "text-2xl font-medium font-mono text-white mt-2";
+                }
+            } else {
+                document.getElementById('stat-temp-drift').innerHTML = "N/A";
+            }
+            
+            // 4. Pearson Correlation Coefficient (r)
+            let num = 0;
+            let denT = 0;
+            let denP = 0;
+            const tempMeanCalc = tempMean;
+            const pressureMean = pressures.reduce((a, b) => a + b, 0) / n;
+            for (let i = 0; i < n; i++) {
+                const diffT = temps[i] - tempMeanCalc;
+                const diffP = pressures[i] - pressureMean;
+                num += diffT * diffP;
+                denT += diffT * diffT;
+                denP += diffP * diffP;
+            }
+            const r = num / (Math.sqrt(denT * denP) || 1.0);
+            document.getElementById('stat-pearson-r').innerHTML = r.toFixed(2);
+            
+            // Check for decorrelation (indicator of Stuxnet-like sensor spoofing/drift)
+            if (n > 20 && Math.abs(r) < 0.2) {
+                document.getElementById('stat-pearson-r').className = "text-2xl font-medium font-mono text-red-500 mt-2 animate-pulse";
+            } else {
+                document.getElementById('stat-pearson-r').className = "text-2xl font-medium font-mono text-white mt-2";
+            }
+        }
+
+        // Update Device Isolation status UI
+        function updateIsolationUI(isIsolated) {
+            currentDeviceIsolated = isIsolated;
+            const statusEl = document.getElementById('device-isolation-status');
+            const btnEl = document.getElementById('isolation-toggle-btn');
+            
+            if (isIsolated) {
+                statusEl.innerHTML = "ISOLATED";
+                statusEl.className = "font-medium px-2 py-1 rounded text-red-400 bg-red-500/10 border border-red-500/30";
+                btnEl.innerHTML = "Rejoin Device to Loop";
+                btnEl.className = "w-full bg-white text-black hover:bg-[#e8e8ed] py-2.5 rounded-xl text-xs font-semibold tracking-wide transition duration-150";
+            } else {
+                statusEl.innerHTML = "CONNECTED";
+                statusEl.className = "font-medium px-2 py-1 rounded text-emerald-400 bg-emerald-500/10 border border-emerald-500/30";
+                btnEl.innerHTML = "Manual Isolate Device";
+                btnEl.className = "w-full bg-red-600 hover:bg-red-500 text-white py-2.5 rounded-xl text-xs font-semibold tracking-wide transition duration-150";
+            }
+        }
+
+        // Toggle Isolation State via POST request
+        async function toggleIsolation() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const endpoint = currentDeviceIsolated ? '/api/device/rejoin' : '/api/device/isolate';
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    }
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showAlert(result.details, 'success');
+                    updateIsolationUI(!currentDeviceIsolated);
+                } else {
+                    showAlert(result.error, 'error');
+                }
+            } catch (err) {
+                showAlert('Failed to contact SCADA backend for device isolation.', 'error');
+            }
+        }
+
+        // Trigger simulated cybersecurity attack
+        async function triggerAttack(type) {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            try {
+                const response = await fetch('/api/simulate-attack', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({ type })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showAlert(result.details, 'success');
+                    refreshDashboard();
+                } else {
+                    showAlert(result.error, 'error');
+                }
+            } catch (err) {
+                showAlert('Failed to trigger attack simulation.', 'error');
+            }
+        }
+
+        // --- Hardware COM Port Management JS ---
+        async function fetchComPortStatus() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            try {
+                const response = await fetch('/api/com_ports/status', {
+                    headers: { 'X-CSRF-Token': csrfToken }
+                });
+                const result = await response.json();
+                const statusEl = document.getElementById('active-com-port');
+                if (result.success && result.port) {
+                    activeComPort = result.port;
+                    statusEl.innerHTML = activeComPort;
+                    statusEl.className = "font-medium px-2 py-1 rounded text-emerald-400 bg-emerald-500/10 border border-emerald-500/30";
+                } else {
+                    activeComPort = null;
+                    statusEl.innerHTML = "DISCONNECTED";
+                    statusEl.className = "font-medium px-2 py-1 rounded text-amber-400 bg-amber-500/10 border border-amber-500/30";
+                }
+            } catch (err) {
+                console.error("Failed to fetch COM port status", err);
+            }
+        }
+
+        async function scanComPorts() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            try {
+                const response = await fetch('/api/com_ports', {
+                    headers: { 'X-CSRF-Token': csrfToken }
+                });
+                const result = await response.json();
+                if (result.success) {
+                    const dataList = document.getElementById('com-port-options');
+                    // Keep MOCK, remove others
+                    dataList.innerHTML = '<option value="MOCK">MOCK (Software Emulation)</option>';
+                    if (result.ports.length === 0) {
+                        showAlert('No active COM ports detected. You can type it manually.', 'error');
+                    } else {
+                        result.ports.forEach(port => {
+                            const opt = document.createElement('option');
+                            opt.value = port;
+                            dataList.appendChild(opt);
+                        });
+                        showAlert(`Found ${result.ports.length} port(s).`, 'success');
+                    }
+                } else {
+                    showAlert(result.error, 'error');
+                }
+            } catch (err) {
+                showAlert('Failed to scan COM ports.', 'error');
+            }
+        }
+
+        async function connectComPort() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const port = document.getElementById('com-port-select').value;
+            if (!port) {
+                showAlert('Please select or type a COM port first.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/com_ports/connect', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({ port })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showAlert(result.details, 'success');
+                    setTimeout(fetchComPortStatus, 1000);
+                } else {
+                    showAlert(result.error, 'error');
+                }
+            } catch (err) {
+                showAlert('Failed to connect to COM port.', 'error');
+            }
+        }
+
+        async function disconnectComPort() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            try {
+                const response = await fetch('/api/com_ports/disconnect', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    }
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showAlert(result.details, 'success');
+                    setTimeout(fetchComPortStatus, 500);
+                } else {
+                    showAlert(result.error, 'error');
+                }
+            } catch (err) {
+                showAlert('Failed to disconnect COM port.', 'error');
+            }
+        }
+
+        // Trigger PDF Report download (works in both browser and PyWebView)
+        function downloadReport() {
+            fetch('/api/report/download')
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'aegis_incident_report.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(() => showAlert('Failed to download PDF report.', 'error'));
+        }
+
+        async function loadRules() {
+            try {
+                const response = await fetch('/api/rules');
+                const result = await response.json();
+                if (result.success && result.rules) {
+                    document.getElementById('rule-temp-max').value = result.rules.temp_max;
+                    document.getElementById('rule-temp-min').value = result.rules.temp_min;
+                    document.getElementById('rule-pressure-max').value = result.rules.pressure_max;
+                    document.getElementById('rule-pressure-min').value = result.rules.pressure_min;
+                }
+            } catch (err) {
+                console.error("Failed to load rules", err);
+            }
+        }
+
+        async function saveRules() {
+            const temp_max = parseFloat(document.getElementById('rule-temp-max').value);
+            const temp_min = parseFloat(document.getElementById('rule-temp-min').value);
+            const pressure_max = parseFloat(document.getElementById('rule-pressure-max').value);
+            const pressure_min = parseFloat(document.getElementById('rule-pressure-min').value);
+
+            if (isNaN(temp_max) || isNaN(temp_min) || isNaN(pressure_max) || isNaN(pressure_min)) {
+                showAlert("All threshold boundaries must be valid numeric values.", "error");
+                return;
+            }
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            try {
+                const response = await fetch('/api/rules/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({ temp_max, temp_min, pressure_max, pressure_min })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showAlert(result.details, 'success');
+                } else {
+                    showAlert(result.error, 'error');
+                }
+            } catch (err) {
+                showAlert("Failed to save rules to SCADA backend.", "error");
+            }
+        }
+
+        // Periodically refresh data
+        async function refreshDashboard() {
+            try {
+                // 1. Fetch telemetry & audit logs
+                const response = await fetch('/api/data');
+                const data = await response.json();
+                
+                const latest = data.telemetry[data.telemetry.length - 1];
+                const nowSecs = Date.now() / 1000;
+                
+                // Determine connection & activity status
+                const isComDisconnected = !activeComPort || activeComPort === "DISCONNECTED" || (activeComPort === "MOCK_PORT" && data.telemetry.length === 0);
+                const isDataInactive = !latest || (nowSecs - latest.timestamp > 5.0);
+                
+                const chartTitle = document.getElementById('chart-title-status');
+                if (isComDisconnected) {
+                    chartTitle.innerHTML = "Real-time Sensor Telemetry — STOPPED (COM PORT DISCONNECTED)";
+                    chartTitle.className = "text-sm font-semibold tracking-tight text-red-400 border-b border-white/5 pb-3 mb-5";
+                } else if (isDataInactive) {
+                    chartTitle.innerHTML = "Real-time Sensor Telemetry — STOPPED (NO NEW DATA)";
+                    chartTitle.className = "text-sm font-semibold tracking-tight text-amber-400 border-b border-white/5 pb-3 mb-5";
+                } else {
+                    chartTitle.innerHTML = "Real-time Sensor Telemetry — RUNNING";
+                    chartTitle.className = "text-sm font-semibold tracking-tight text-emerald-400 border-b border-white/5 pb-3 mb-5";
+                }
+
+                // If disconnected or inactive, freeze the graph completely by skipping updates
+                if (!isComDisconnected && !isDataInactive) {
+                    // Update label arrays and datasets dynamically based on transmitted fields
+                    const hasTemp = data.telemetry.some(t => t.temperature !== null && t.temperature !== undefined);
+                    const hasPress = data.telemetry.some(t => t.pressure !== null && t.pressure !== undefined);
+                    const hasVib = data.telemetry.some(t => t.vibration !== null && t.vibration !== undefined);
+                    const hasHall = data.telemetry.some(t => t.hall_effect !== null && t.hall_effect !== undefined);
+                    const hasCurrent = data.telemetry.some(t => t.current !== null && t.current !== undefined);
+
+                    telemetryChart.data.labels = data.telemetry.map((_, i) => i + 1);
+                    telemetryChart.data.datasets[0].data = data.telemetry.map(t => t.temperature);
+                    telemetryChart.data.datasets[0].hidden = !hasTemp;
+
+                    telemetryChart.data.datasets[1].data = data.telemetry.map(t => t.pressure);
+                    telemetryChart.data.datasets[1].hidden = !hasPress;
+
+                    telemetryChart.data.datasets[2].data = data.telemetry.map(t => t.vibration);
+                    telemetryChart.data.datasets[2].hidden = !hasVib;
+
+                    telemetryChart.data.datasets[3].data = data.telemetry.map(t => t.hall_effect !== null && t.hall_effect !== undefined ? t.hall_effect / 100 : null);
+                    telemetryChart.data.datasets[3].hidden = !hasHall;
+
+                    telemetryChart.data.datasets[4].data = data.telemetry.map(t => t.current);
+                    telemetryChart.data.datasets[4].hidden = !hasCurrent;
+
+                    telemetryChart.update();
+                }
+                
+                // Update latest physical sensor gauges with N/A if missing
+                if (latest) {
+                    document.getElementById('stat-vibration').innerHTML = latest.vibration !== null && latest.vibration !== undefined ? `${latest.vibration.toFixed(2)} g` : 'N/A';
+                    document.getElementById('stat-hall').innerHTML = latest.hall_effect !== null && latest.hall_effect !== undefined ? `${latest.hall_effect.toFixed(0)} RPM` : 'N/A';
+                    document.getElementById('stat-current').innerHTML = latest.current !== null && latest.current !== undefined ? `${latest.current.toFixed(2)} A` : 'N/A';
+                } else {
+                    document.getElementById('stat-vibration').innerHTML = 'N/A';
+                    document.getElementById('stat-hall').innerHTML = 'N/A';
+                    document.getElementById('stat-current').innerHTML = 'N/A';
+                }
+                
+                // Calculate statistical metrics (filter out non-null parameters)
+                calculateStats(data.telemetry);
+                
+                // Update financials from backend (ensuring consistency with PDF)
+                if (data.financials) {
+                    const f = data.financials;
+                    document.getElementById('risk-pct-label').innerHTML = `${f.threat_index}%`;
+                    document.getElementById('risk-bar').style.width = `${f.threat_index}%`;
+                    
+                    if (f.threat_index >= 60.0) {
+                        document.getElementById('risk-bar').className = "bg-red-500 h-full transition-all duration-300";
+                    } else if (f.threat_index >= 30.0) {
+                        document.getElementById('risk-bar').className = "bg-amber-400 h-full transition-all duration-300";
+                    } else {
+                        document.getElementById('risk-bar').className = "bg-white h-full transition-all duration-300";
+                    }
+
+                    document.getElementById('risk-drift-level').innerHTML = `${f.drift_risk}%`;
+                    document.getElementById('risk-corr-level').innerHTML = `${f.corr_risk}%`;
+                    document.getElementById('risk-boundary-level').innerHTML = `${f.boundary_risk}%`;
+                    document.getElementById('risk-expected-loss').innerHTML = `$${f.expected_loss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    
+                    // Update total incurred and prevented losses
+                    document.getElementById('risk-incurred-loss').innerHTML = `$${f.incurred_cost.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                    document.getElementById('risk-prevented-loss').innerHTML = `$${f.prevented_cost.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                }
+                
+                // Rebuild Audit logs safely
+                const tableBody = document.getElementById('audit-table-body');
+                tableBody.innerHTML = '';
+                data.audit_logs.forEach(a => {
+                    const row = document.createElement('tr');
+                    row.className = "hover:bg-white/[0.02] transition duration-150";
+                    
+                    let actionClass = "text-[#86868b]";
+                    if (a.action.includes("VIOLATION") || a.action.includes("ISOLATION")) {
+                        actionClass = "text-red-400 font-medium";
+                    } else if (a.action === "LOGIN" || a.action.includes("REJOIN")) {
+                        actionClass = "text-emerald-400 font-medium";
+                    }
+                    
+                    const timeStr = new Date(a.timestamp).toLocaleTimeString();
+                    row.innerHTML = `
+                        <td class="py-3 pr-4 text-[#86868b]">${escapeHTML(timeStr)}</td>
+                        <td class="py-3 pr-4 text-white font-medium">${escapeHTML(a.username)}</td>
+                        <td class="py-3 pr-4 ${actionClass}">${escapeHTML(a.action)}</td>
+                        <td class="py-3 pr-4 text-[#86868b] font-mono text-[11px]">${escapeHTML(a.location)}</td>
+                        <td class="py-3 text-[#86868b] font-light max-w-xs truncate" title="${escapeHTML(a.details)}">${escapeHTML(a.details)}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+                // 2. Fetch current Device isolation status
+                const statusResponse = await fetch('/api/device/status');
+                const statusData = await statusResponse.json();
+                updateIsolationUI(statusData.is_isolated);
+
+            } catch (err) {
+                console.error("Dashboard refresh error: ", err);
+            }
+        }
+
+        // --- Update Banner (called by launcher.py via webview.evaluate_js) ---
+        function showUpdateBanner(version, downloadUrl) {
+            const banner = document.getElementById('update-banner');
+            const text = document.getElementById('update-banner-text');
+            const link = document.getElementById('update-banner-link');
+            if (banner && text && link) {
+                text.textContent = `Aegis ICS v${version} is available. You are running v2.2.2.`;
+                link.href = downloadUrl;
+                banner.classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
