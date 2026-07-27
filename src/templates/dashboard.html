@@ -136,12 +136,18 @@
                     </div>
                     
                     <div class="space-y-2">
-                        <label class="block text-xs text-[#86868b] uppercase tracking-wider font-semibold">Select Device Port</label>
+                        <label class="block text-xs text-[#86868b] uppercase tracking-wider font-semibold">Select Device Port & Baud</label>
                         <div class="flex gap-2">
                             <select id="com-port-select" class="w-full apple-input rounded-xl px-3 py-2.5 text-sm">
                                 <option value="MOCK">MOCK (Software Emulation)</option>
                             </select>
-                            <button onclick="scanComPorts()" title="Scan for devices" class="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium px-4 py-2.5 rounded-xl transition duration-150">
+                            <select id="baud-rate-select" class="apple-input rounded-xl px-2 py-2.5 text-sm w-28 text-white bg-white/5 border border-white/10">
+                                <option value="115200" selected>115200</option>
+                                <option value="9600">9600</option>
+                                <option value="57600">57600</option>
+                                <option value="38400">38400</option>
+                            </select>
+                            <button onclick="scanComPorts()" title="Scan for devices" class="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium px-4 py-2.5 rounded-xl transition duration-150 flex-shrink-0">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                             </button>
                         </div>
@@ -696,60 +702,65 @@
         function calculateStats(telemetry) {
             if (telemetry.length === 0) return;
             
-            // Filter to rows with non-null temperature and pressure
-            const validTelemetry = telemetry.filter(t => t.temperature !== null && t.temperature !== undefined && t.pressure !== null && t.pressure !== undefined);
-            if (validTelemetry.length < 2) {
+            // Filter telemetry for non-null temperature readings
+            const validTempRecords = telemetry.filter(t => t.temperature !== null && t.temperature !== undefined);
+            if (validTempRecords.length < 2) {
                 document.getElementById('stat-temp-mean').innerHTML = 'N/A';
                 document.getElementById('stat-temp-var').innerHTML = 'N/A';
                 document.getElementById('stat-temp-drift').innerHTML = 'N/A';
+            } else {
+                const temps = validTempRecords.map(t => t.temperature);
+                const times = validTempRecords.map(t => t.timestamp);
+                const n = validTempRecords.length;
+                
+                // 1. Mean
+                const tempMean = temps.reduce((a, b) => a + b, 0) / n;
+                document.getElementById('stat-temp-mean').innerHTML = `${tempMean.toFixed(1)} °C`;
+                
+                // 2. Variance
+                const divisor = n > 1 ? n - 1 : 1;
+                const tempVar = temps.reduce((a, b) => a + Math.pow(b - tempMean, 2), 0) / divisor;
+                document.getElementById('stat-temp-var').innerHTML = tempVar.toFixed(3);
+                
+                // 3. Drift Rate (Temperature Delta per Minute)
+                if (n >= 15) {
+                    const latestTemp = temps[n - 1];
+                    const olderTemp = temps[n - 15]; 
+                    const timeDiffMins = (times[n - 1] - times[n - 15]) / 60;
+                    
+                    const tempDrift = (latestTemp - olderTemp) / (timeDiffMins || 1.0);
+                    const driftText = `${tempDrift.toFixed(2)} °C/m`;
+                    document.getElementById('stat-temp-drift').innerHTML = driftText;
+                    
+                    if (Math.abs(tempDrift) > 3.0) {
+                        document.getElementById('stat-temp-drift').className = "text-2xl font-medium font-mono text-red-400 mt-2";
+                    } else {
+                        document.getElementById('stat-temp-drift').className = "text-2xl font-medium font-mono text-white mt-2";
+                    }
+                } else {
+                    document.getElementById('stat-temp-drift').innerHTML = "N/A";
+                }
+            }
+            
+            // 4. Pearson Correlation Coefficient (requires both temperature and pressure)
+            const validBoth = telemetry.filter(t => t.temperature !== null && t.temperature !== undefined && t.pressure !== null && t.pressure !== undefined);
+            if (validBoth.length < 2) {
                 document.getElementById('stat-pearson-r').innerHTML = 'N/A';
                 return;
             }
             
-            const temps = validTelemetry.map(t => t.temperature);
-            const pressures = validTelemetry.map(t => t.pressure);
-            const times = validTelemetry.map(t => t.timestamp);
+            const tempsBoth = validBoth.map(t => t.temperature);
+            const pressBoth = validBoth.map(t => t.pressure);
+            const nBoth = validBoth.length;
             
-            const n = validTelemetry.length;
-            
-            // 1. Mean
-            const tempMean = temps.reduce((a, b) => a + b, 0) / n;
-            document.getElementById('stat-temp-mean').innerHTML = `${tempMean.toFixed(1)} °C`;
-            
-            // 2. Variance (Sample Variance n-1 to address code review issue)
-            const divisor = n > 1 ? n - 1 : 1;
-            const tempVar = temps.reduce((a, b) => a + Math.pow(b - tempMean, 2), 0) / divisor;
-            document.getElementById('stat-temp-var').innerHTML = tempVar.toFixed(3);
-            
-            // 3. Drift Rate (Temperature Delta per Minute)
-            let tempDrift = 0;
-            if (n >= 15) {
-                const latestTemp = temps[n - 1];
-                const olderTemp = temps[n - 15]; 
-                const timeDiffMins = (times[n - 1] - times[n - 15]) / 60;
-                
-                tempDrift = (latestTemp - olderTemp) / (timeDiffMins || 1.0);
-                const driftText = `${tempDrift.toFixed(2)} °C/m`;
-                document.getElementById('stat-temp-drift').innerHTML = driftText;
-                
-                if (Math.abs(tempDrift) > 3.0) {
-                    document.getElementById('stat-temp-drift').className = "text-2xl font-medium font-mono text-red-400 mt-2";
-                } else {
-                    document.getElementById('stat-temp-drift').className = "text-2xl font-medium font-mono text-white mt-2";
-                }
-            } else {
-                document.getElementById('stat-temp-drift').innerHTML = "N/A";
-            }
-            
-            // 4. Pearson Correlation Coefficient (r)
             let num = 0;
             let denT = 0;
             let denP = 0;
-            const tempMeanCalc = tempMean;
-            const pressureMean = pressures.reduce((a, b) => a + b, 0) / n;
-            for (let i = 0; i < n; i++) {
-                const diffT = temps[i] - tempMeanCalc;
-                const diffP = pressures[i] - pressureMean;
+            const tMeanCalc = tempsBoth.reduce((a, b) => a + b, 0) / nBoth;
+            const pMeanCalc = pressBoth.reduce((a, b) => a + b, 0) / nBoth;
+            for (let i = 0; i < nBoth; i++) {
+                const diffT = tempsBoth[i] - tMeanCalc;
+                const diffP = pressBoth[i] - pMeanCalc;
                 num += diffT * diffP;
                 denT += diffT * diffT;
                 denP += diffP * diffP;
@@ -757,8 +768,7 @@
             const r = num / (Math.sqrt(denT * denP) || 1.0);
             document.getElementById('stat-pearson-r').innerHTML = r.toFixed(2);
             
-            // Check for decorrelation (indicator of Stuxnet-like sensor spoofing/drift)
-            if (n > 20 && Math.abs(r) < 0.2) {
+            if (nBoth > 20 && Math.abs(r) < 0.2) {
                 document.getElementById('stat-pearson-r').className = "text-2xl font-medium font-mono text-red-500 mt-2 animate-pulse";
             } else {
                 document.getElementById('stat-pearson-r').className = "text-2xl font-medium font-mono text-white mt-2";
@@ -887,6 +897,8 @@
         async function connectComPort() {
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
             const port = document.getElementById('com-port-select').value;
+            const baudEl = document.getElementById('baud-rate-select');
+            const baud = baudEl ? parseInt(baudEl.value) : 115200;
             if (!port) {
                 showAlert('Please select or type a COM port first.', 'error');
                 return;
@@ -899,7 +911,7 @@
                         'Content-Type': 'application/json',
                         'X-CSRF-Token': csrfToken
                     },
-                    body: JSON.stringify({ port, csrf_token: csrfToken })
+                    body: JSON.stringify({ port, baud, csrf_token: csrfToken })
                 });
                 const result = await response.json();
                 if (result.success) {
@@ -936,9 +948,65 @@
             }
         }
 
-        // Trigger PDF Report download (works in both browser and PyWebView)
-        function downloadReport() {
-            window.location.href = '/api/report/download';
+        // Trigger PDF Report download (opens native Save File Dialog pop-up window)
+        async function downloadReport() {
+            try {
+                showAlert('Generating incident PDF report...', 'info');
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
+                // First try Web File System Access API if supported in browser environment
+                if (window.showSaveFilePicker) {
+                    try {
+                        const response = await fetch('/api/report/download', {
+                            headers: { 'X-CSRF-Token': csrfToken }
+                        });
+                        if (!response.ok) {
+                            const errJson = await response.json().catch(() => ({}));
+                            showAlert(errJson.error || 'Failed to generate report.', 'error');
+                            return;
+                        }
+                        const blob = await response.blob();
+                        const handle = await window.showSaveFilePicker({
+                            suggestedName: `aegis_scada_report_${Date.now()}.pdf`,
+                            types: [{
+                                description: 'PDF Document',
+                                accept: { 'application/pdf': ['.pdf'] }
+                            }]
+                        });
+                        const writable = await handle.createWritable();
+                        await writable.write(blob);
+                        await writable.close();
+                        showAlert('Incident report PDF saved successfully.', 'success');
+                        return;
+                    } catch (err) {
+                        if (err.name === 'AbortError') {
+                            showAlert('Report save cancelled.', 'info');
+                            return;
+                        }
+                        console.warn("showSaveFilePicker failed or not allowed, trying server save dialog:", err);
+                    }
+                }
+
+                // Fallback / PyWebView Desktop mode: Server-side native Tkinter file save dialog
+                const response = await fetch('/api/report/save_dialog', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-Token': csrfToken,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showAlert(result.message || 'Incident report PDF saved successfully.', 'success');
+                } else if (result.cancelled) {
+                    showAlert('Report save cancelled.', 'info');
+                } else {
+                    showAlert(result.error || 'Failed to save report.', 'error');
+                }
+            } catch (err) {
+                console.error("Report download error:", err);
+                showAlert('Error triggering report download.', 'error');
+            }
         }
 
         async function loadRules() {
@@ -1015,8 +1083,8 @@
                     chartTitle.className = "text-sm font-semibold tracking-tight text-emerald-400 border-b border-white/5 pb-3 mb-5";
                 }
 
-                // If connected and telemetry exists, update graph datasets
-                if (!isComDisconnected && data.telemetry.length > 0) {
+                // Update graph datasets if telemetry exists
+                if (data.telemetry.length > 0) {
                     // Update label arrays and datasets dynamically based on transmitted fields
                     const hasTemp = data.telemetry.some(t => t.temperature !== null && t.temperature !== undefined);
                     const hasPress = data.telemetry.some(t => t.pressure !== null && t.pressure !== undefined);

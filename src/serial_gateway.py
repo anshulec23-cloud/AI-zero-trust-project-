@@ -112,8 +112,32 @@ def parse_serial_line (line :str ,mode :str ):
             "pressure":float (parts [1 ])
             }
     except Exception as e :
-        print (f"[Gateway] CSV Parse error on line: '{line }' ({e })")
+        pass
 
+    # Key-Value fallback parsing (e.g., "TEMP:42.5", "T:42.5", "temp=42.5", "P:4.2")
+    kv_res = {}
+    for item in line.replace('=', ':').split(','):
+        if ':' in item:
+            k, v = item.split(':', 1)
+            k = k.strip().lower()
+            try:
+                val = float(v.strip())
+                if k in ('t', 'temp', 'temperature'):
+                    kv_res['temperature'] = val
+                elif k in ('p', 'pres', 'pressure'):
+                    kv_res['pressure'] = val
+                elif k in ('v', 'vib', 'vibration'):
+                    kv_res['vibration'] = val
+                elif k in ('h', 'hall', 'hall_effect'):
+                    kv_res['hall_effect'] = val
+                elif k in ('c', 'curr', 'current'):
+                    kv_res['current'] = val
+            except ValueError:
+                pass
+    if kv_res:
+        return kv_res
+
+    print(f"[Gateway] Could not parse serial line: '{line}'")
     return None 
 
 def mock_serial_stream (mode ):
@@ -144,7 +168,7 @@ def mock_serial_stream (mode ):
         "curr":0.0 
         })+"\n"
 
-def start_gateway (port ="COM3",baud =9600 ,mode ="plc",device_id =None ,hmac_key =None ,url =DEFAULT_GATEWAY_URL ,mock =False ):
+def start_gateway (port ="COM3",baud =115200 ,mode ="plc",device_id =None ,hmac_key =None ,url =DEFAULT_GATEWAY_URL ,mock =False ):
     global _active_port 
     import time 
     _gateway_stop_event .clear ()
@@ -166,11 +190,10 @@ def start_gateway (port ="COM3",baud =9600 ,mode ="plc",device_id =None ,hmac_ke
             print ("[CRITICAL] PySerial not installed. Install it or run with mock=True.")
             sys .exit (1 )
         try :
-
             ser =serial .Serial (port ,baudrate =baud ,timeout =1 )
             ser .setDTR (False )
             ser .setRTS (False )
-            print (f"[Gateway] Connected to COM port: {port }")
+            print (f"[Gateway] Connected to COM port: {port } @ {baud} baud")
         except Exception as e :
             print (f"[Gateway] FAILED to connect to COM port {port }: {e }")
             print ("[Gateway] Connection failed. Gateway will NOT fall back to emulation.")
@@ -244,10 +267,12 @@ def start_gateway (port ="COM3",baud =9600 ,mode ="plc",device_id =None ,hmac_ke
 
         except Exception as e :
             print (f"[Gateway] Telemetry acquisition exception: {e }")
-            if not mock and ("SerialException" in type(e).__name__ or "port" in str(e).lower() or "closed" in str(e).lower()):
+            if _gateway_stop_event.is_set():
+                break
+            if not mock and (ser is None or not ser.is_open):
                 print ("[Gateway] Critical connection failure. Stopping gateway.")
                 break
-            time .sleep (2 )
+            time .sleep (1 )
 
 
     if ser and ser .is_open :
