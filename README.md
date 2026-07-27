@@ -1,12 +1,12 @@
 # Aegis ICS - Industrial Zero-Trust Security Gateway & Physical Enforcer
 
-[![Release Version](https://img.shields.io/badge/release-v2.2.2-blue.svg)](https://github.com/anshulec23-cloud/aegis-ics/releases/tag/v2.2.2)
+[![Release Version](https://img.shields.io/badge/release-v2.3.0-blue.svg)](https://github.com/anshulec23-cloud/aegis-ics/releases/tag/v2.3.0)
 [![Application Status](https://img.shields.io/badge/status-functioning_software_application-success.svg)](#software-application-overview)
 [![Tests Status](https://img.shields.io/badge/tests-10%2F10%20passing-brightgreen.svg)](#quality-assurance--testing)
 [![Python Version](https://img.shields.io/badge/python-3.12%2B-informational.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-> **Official Software Application Release (v2.2.2)**: Aegis ICS is a fully functioning, production-ready zero-trust security gateway, physical safety enforcer, and real-time SCADA monitoring application built for Industrial Control Systems (ICS) and Operational Technology (OT) environments.
+> **Official Software Application Release (v2.3.0)**: Aegis ICS is a fully functioning, production-ready zero-trust security gateway, physical safety enforcer, and real-time SCADA monitoring application built for Industrial Control Systems (ICS) and Operational Technology (OT) environments.
 
 ---
 
@@ -20,7 +20,7 @@
 - [Quality Assurance & Testing](#quality-assurance--testing)
 - [REST API Reference](#rest-api-reference)
 - [Repository Structure](#repository-structure)
-- [Release Notes & Version 2.2.2 Updates](#release-notes--version-222-updates)
+- [Release Notes & Version 2.3.0 Updates](#release-notes--version-230-updates)
 - [Authors & Contact](#authors--contact)
 
 ---
@@ -206,9 +206,9 @@ aegis-ics/
 
 ---
 
-## 🔄 Release Notes & Version 2.2.2 Updates
+## 🔄 Release Notes & Version 2.3.0 Updates
 
-**Version 2.2.2 Release Summary**:
+**Version 2.3.0 Release Summary**:
 - **Hardware Connection Stability**: Implemented PySerial DTR/RTS signal suppression to prevent continuous ESP32 reset loops upon connecting.
 - **Manual Hardware Connection Panel**: Interactive dashboard controls to select, connect, and disconnect serial COM devices dynamically without restarting services.
 - **Enhanced Safety Enforcer**: Multi-variable physical hazard validation for Stuxnet-style coordinated attacks.

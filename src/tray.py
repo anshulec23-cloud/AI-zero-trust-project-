@@ -108,7 +108,7 @@ class AegisTray :
         self .icon :pystray .Icon =pystray .Icon (
         name ="AegisICS",
         icon =icon_image ,
-        title ="Aegis ICS — Industrial Security v2.2.2",
+        title ="Aegis ICS — Industrial Security v2.3.0",
         menu =menu ,
         )
 
