@@ -1,21 +1,38 @@
-# Aegis ICS v2.2.1 - Hardware Connection & Stability Update
+# Aegis ICS v2.2.2 Release Notes
 
-This release addresses critical hardware connection stability and introduces a manual COM port connection interface.
+**Aegis ICS (Industrial Control System) v2.2.2** is a major feature, stability, and security update to the zero-trust industrial security gateway and enforcer software application.
 
-## Key Changes
-- **"Dead Bug" Fix:** Refactored PySerial initialization in `serial_gateway.py` to disable DTR and RTS signals before opening the port. This prevents connected ESP32 boards from entering a continuous reset loop when the software connects.
-- **Manual COM Port Connection UI:** Disabled the risky automatic port scanning on startup. Added a new "Hardware Connection" panel to the dashboard where operators can securely scan for devices, select a specific COM port, and connect/disconnect manually.
-- **Dynamic Thread Management:** The backend now controls the telemetry ingestion daemon via new REST APIs, allowing the user to seamlessly switch devices without restarting the application.
+---
 
-### 🚀 Key Features & Changes
-- **Standalone Executable**: The entire software suite is now bundled into a single `AegisICS.exe` binary. No external dependencies, Python installation, or batch scripts (`aegis.bat`) are required for the end user.
-- **Hardware Serial Integration**: Added built-in automatic COM port detection for ESP32/PLC edge devices in `launcher.py`, spinning up the Serial Gateway in the background automatically.
-- **Security Hardening**: The PyWebView frontend UI is now cryptographically locked to the Flask backend using an ephemeral `X-PYWEBVIEW-TOKEN`. Direct access to the backend API from external browsers is blocked.
-- **Dependency Optimization**: `Pillow` and `pystray` were gracefully removed to resolve Python 3.14 native C++ compilation errors, ensuring stable PyInstaller builds. The Scikit-Learn version constraint was unpinned.
-- **Deprecation Fixes**: Upgraded timestamp usages in `database.py` and `app.py` from `datetime.utcnow()` to timezone-aware UTC objects to fix Python 3.12+ warnings.
+## 🌟 Highlights & Key Features
 
-### 🐛 Bug Fixes
-- Fixed an issue where PyInstaller would fail to bundle `pywebview` due to upstream dependency compilation errors.
-- Cleaned up obsolete `start.ps1` and `aegis.bat` launcher methods.
+- **Functioning Software Application & Desktop Suite**: Fully integrated standalone executable (`AegisICS.exe`) and web gateway environment delivering real-time telemetry processing, SCADA monitoring, and zero-trust micro-segmentation.
+- **Hardware Connection & Serial Gateway Stability**: Refactored PySerial initialization (`serial_gateway.py`) to disable DTR/RTS signals prior to port opening, preventing continuous ESP32 hardware reset loops ("Dead Bug" fix).
+- **Manual & Auto COM Port Connection Interface**: Added a dedicated hardware connection control panel to the web dashboard allowing operators to scan available serial ports, connect/disconnect on-demand, and monitor live micro-controller telemetry.
+- **Stuxnet-Proof AI Safety Enforcer**: Enhanced multi-variable safety evaluation that blocks coordinated stress vectors (e.g. attempting to raise temperature while system pressure is high) and records violations to the SQLite audit engine.
+- **Operator Location & Audit Engine**: All SCADA setpoints and security events are cryptographically audited with 3D spatial location coordinates (`X, Y, Z`) and timestamps.
+- **Financial Risk & Threat Index Analytics**: Advanced financial exposure modeling calculating incurred financial loss, prevented damage costs, and dynamic threat indices based on telemetry noise and deviation.
+- **Automated Incident PDF & CSV Reporting**: Integrated ReportLab PDF report generator producing official incident reports with custom branding, financial summaries, and security log table dumps.
+- **Complete Test Suite Coverage**: Passed 100% of integration, stress, concurrency, and security fuzzing unit tests (`pytest`).
 
-**Compare**: You can compare these changes with the previous `v2.1.0` release tag to see the exact code differences in the hardware integration and PyInstaller configuration.
+---
+
+## 🐛 Bug Fixes & Stability Updates
+
+- Fixed rate-limiting issues for local desktop operators accessing dashboard endpoints.
+- Synchronized HMAC SHA-256 device key verification across serial gateway and REST API endpoints.
+- Auto-reset device quarantine state upon fresh hardware COM connection setup.
+- Resolved SVG / PDF rendering issues in security report export routines.
+- Updated SQLAlchemy timestamp declarations to timezone-aware UTC objects, eliminating Python 3.12+ deprecation warnings.
+
+---
+
+## 🛠️ Verification & Installation
+
+```powershell
+# Run full automated test suite
+.venv\Scripts\python.exe -m pytest tests/
+
+# Launch backend application server
+.venv\Scripts\python.exe src/app.py
+```

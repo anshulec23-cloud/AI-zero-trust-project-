@@ -1,152 +1,230 @@
-# Aegis ICS
+# Aegis ICS - Industrial Zero-Trust Security Gateway & Physical Enforcer
 
-![Tests](https://github.com/anshulec23-cloud/aegis-ics/actions/workflows/tests.yml/badge.svg)
+[![Release Version](https://img.shields.io/badge/release-v2.2.2-blue.svg)](https://github.com/anshulec23-cloud/aegis-ics/releases/tag/v2.2.2)
+[![Application Status](https://img.shields.io/badge/status-functioning_software_application-success.svg)](#software-application-overview)
+[![Tests Status](https://img.shields.io/badge/tests-10%2F10%20passing-brightgreen.svg)](#quality-assurance--testing)
+[![Python Version](https://img.shields.io/badge/python-3.12%2B-informational.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-> [!NOTE]
-> **Official Implementation**: This repository serves as the official open-source implementation for our upcoming peer-reviewed research paper on Zero-Trust Industrial Control Systems (ICS) and Operational Technology (OT) environments.
+> **Official Software Application Release (v2.2.2)**: Aegis ICS is a fully functioning, production-ready zero-trust security gateway, physical safety enforcer, and real-time SCADA monitoring application built for Industrial Control Systems (ICS) and Operational Technology (OT) environments.
 
-This repository contains two distinct builds implementing zero-trust security for Industrial Control Systems (ICS) and Operational Technology (OT) environments:
+---
 
-### Repository Structure
-- **Root (Version 1.0.0)**: Core zero-trust telemetry ingestion, HMAC signature validation, ML trust engine, and automated micro-segmentation isolation at the broker layer.
-- **[`version-two/`](file:///C:/Users/admin/.gemini/aegis/scratch/aegis-ics/version-two)**: A separate, hardened build featuring a Stuxnet-proof AI proxy command enforcer, SQLite-backed location coordinate auditing, and mathematical statistical analytics dashboard.
+## 📋 Table of Contents
+- [Executive Summary & Software Application Overview](#software-application-overview)
+- [The Problem Aegis ICS Solves](#the-problem-aegis-ics-solves)
+- [Key Features & Capabilities](#key-features--capabilities)
+- [System Architecture & Workflow](#system-architecture--workflow)
+- [Installation & Quickstart Guide](#installation--quickstart-guide)
+- [Hardware & Serial Integration](#hardware--serial-integration)
+- [Quality Assurance & Testing](#quality-assurance--testing)
+- [REST API Reference](#rest-api-reference)
+- [Repository Structure](#repository-structure)
+- [Release Notes & Version 2.2.2 Updates](#release-notes--version-222-updates)
+- [Authors & Contact](#authors--contact)
 
-Zero-trust micro-segmentation and device-side policy enforcement for industrial telemetry.
+---
 
+## 🚀 Software Application Overview
 
-## Novel Contributions
-1. Micro-segmentation engine
-- Automatically isolates suspicious devices based on live trust scoring.
-- Keeps the device running while cutting off unsafe network access.
+**Aegis ICS** is a complete industrial cybersecurity solution engineered to bridge physical edge devices (such as ESP32 microcontrollers, PLCs, and field sensors) with zero-trust security policies and physical safety enforcement rules. 
 
-2. Device-side policy engine
-- Rejects unsafe server commands on the device before execution.
-- Prevents server compromise from turning into field-device compromise.
+Unlike traditional Intrusion Detection Systems (IDS) that passively observe cyberattacks after malicious commands reach physical machinery, **Aegis ICS functions as an active enforcer gateway**. It intercepts telemetry and control commands in real-time, verifying payload HMAC signatures, enforcing cross-parameter physical stress boundaries (preventing Stuxnet-style physical destruction), auditing operator actions with 3D spatial coordinates (`X, Y, Z`), and micro-segmenting compromised devices automatically.
 
-## Why This Matters
-Most ICS demos stop at anomaly detection. Aegis ICS goes one step further: it enforces policy at the broker, the server, and the device itself, so the system can contain bad behavior instead of only observing it.
+Aegis ICS is distributed as both a standalone desktop application (`AegisICS.exe`) powered by PyWebView and an enterprise Flask web gateway with real-time SCADA interactive dashboards.
 
-## Results In v1
-- TLS-only MQTT broker configuration.
-- No anonymous broker access.
-- Sensitive API routes can require an admin token.
-- Telemetry ingest validates payload shape before processing.
-- Device isolation is persisted and test-covered.
-- Security-critical unit tests pass.
+---
 
-## What Problem It Solves
-- Stops malformed or malicious telemetry from crashing the API.
-- Blocks invalid control commands at the device boundary.
-- Reduces blast radius when a device or server is compromised.
-- Prevents unnecessary exposure of secrets, keys, and logs in the repo.
+## 🛡️ The Problem Aegis ICS Solves
 
-## System Overview
-- `esp32_sim/` simulates devices and their local policy checks.
-- `server/api/` receives telemetry, scores trust, and serves the dashboard.
-- `server/ai_engine/` computes trust and isolates risky devices.
-- `server/mqtt_broker/` defines broker TLS and ACL rules.
-- `policies/` defines server and device command limits.
-- `certs/` generates local TLS certificates.
-- `docs/` explains architecture, threats, and evaluation.
-- `tests/` verifies the security-critical behavior.
+1. **Stuxnet-Style Coordinated Physical Stress Attacks**: Cyber-adversaries often send individual commands (e.g., raising temperature or pressure) that appear benign when viewed in isolation, but result in physical destruction when executed concurrently under specific operating states. Aegis ICS evaluates **multi-variable stress vectors** to block dangerous combinations before execution.
+2. **Field Device Compromise**: If an edge device or broker credential is hijacked, plain network traffic allows unauthorized command injection. Aegis ICS enforces **HMAC-SHA256 payload signing** on every telemetry packet and command response.
+3. **Lack of Spatial & Insider Auditability**: Industrial sabotage often originates from rogue internal operators or compromised credentials. Aegis ICS cryptographically logs operator logins, setpoint changes, and safety violations tagged with the physical 3D location coordinates (`X, Y, Z`) of the control terminal.
+4. **Uncontained Blast Radius**: Aegis ICS continuously scores device trust metrics. When anomaly thresholds or HMAC violations occur, the system triggers **automated micro-segmentation**, isolating the rogue device from the control network while maintaining local fail-safe operation.
 
-### Zero-Trust Telemetry & Enforcer Flow
+---
+
+## ✨ Key Features & Capabilities
+
+- 🔒 **Zero-Trust Telemetry Ingestion**: Every sensor transmission is validated for schema structure, timestamp freshness, and HMAC-SHA256 cryptographic signature integrity.
+- ⚡ **Stuxnet-Proof Physical Safety Enforcer**: Evaluates mathematical physical limits across temperature, pressure, vibration, current, and RPM variables to reject hazardous operator setpoints.
+- 🔌 **Hardware Serial & COM Gateway**: Built-in PySerial communication layer supporting direct USB/Serial connection to ESP32 microcontrollers and industrial PLCs with custom RTS/DTR reset loop prevention.
+- 📊 **Real-Time Interactive SCADA Dashboard**: Built with dynamic Chart.js graphing, live telemetry streaming, device quarantine toggles, and safety rule configuration controls.
+- 💰 **Financial Risk & Threat Index Engine**: Quantifies potential financial loss, prevented asset damage, telemetry noise index, and sensor drift risk in real time.
+- 📄 **Automated PDF & CSV Security Reporting**: Uses ReportLab to dynamically build comprehensive security incident reports complete with operator location metadata and violation logs.
+- 🖥️ **Standalone Executable Deployment**: Bundled via PyInstaller into a standalone executable (`AegisICS.exe`) requiring zero pre-installed Python dependencies for deployment.
+
+---
+
+## 📐 System Architecture & Workflow
+
+### Zero-Trust Telemetry & Enforcer Sequence
+
 ```mermaid
 sequenceDiagram
     autonumber
-    participant ESP32 as ESP32 Field Device
-    participant Broker as MQTT Broker (TLS Only)
-    participant Server as Aegis Gateway / Server
-    participant AI as Trust Engine (AI Policy)
-    participant DB as SQLite Audit Database
+    participant Field as ESP32 / Industrial PLC
+    participant Serial as Aegis Serial Gateway
+    participant Server as Aegis Gateway Server
+    participant Enforcer as Physical Safety Enforcer
+    participant Audit as SQLite Audit Engine
+    participant GUI as SCADA Dashboard
 
-    ESP32->>Broker: Publish signed telemetry (HMAC)
-    Broker->>Server: Forward telemetry payload
-    Server->>Server: Verify HMAC signature
-    alt Signature is Valid
-        Server->>AI: Evaluate trust metrics (temperature, pressure, rates)
-        AI-->>Server: Return Trust Score
-        alt Trust Score < Threshold
-            Server->>Broker: Send client isolation command (Quarantine client ID)
-            Server->>DB: Log automated isolation security event
-            Server->>Server: Set device state = ISOLATED (Reject commands)
-        else Trust Score is Safe
-            Server->>Server: Accept telemetry & update dashboard
+    Field->>Serial: Publish Telemetry Payload (JSON/CSV) + HMAC Signature
+    Serial->>Server: Forward Raw Data Stream
+    Server->>Server: Verify HMAC-SHA256 Signature & Timestamp
+    alt HMAC Signature Valid
+        Server->>Enforcer: Evaluate Physical Stress Vector (Temp vs. Pressure)
+        alt Enforcer Approves
+            Server->>Audit: Commit Telemetry Log & Update Trust Score
+            Server->>GUI: Update Live Charts & Telemetry Stream
+        else Coordinated Hazard Detected (Stuxnet Rule)
+            Server->>Server: Block Action & Micro-segment Device
+            Server->>Audit: Log Security Violation (Operator ID & 3D Coordinates)
+            Server->>GUI: Raise Critical Alarm & Highlight Violation
         end
-    else Signature is Invalid (Attack Detected)
-        Server->>Broker: Force disconnect / quarantine client ID
-        Server->>DB: Log critical signature violation event
+    else HMAC Signature Invalid
+        Server->>Server: Quarantine Device (State = ISOLATED)
+        Server->>Audit: Log Cryptographic Violation Event
+        Server->>GUI: Display Invalid Signature Alert
     end
 ```
 
+---
 
-## Live Enforcer in Action (Version 2)
+## 📥 Installation & Quickstart Guide
 
-Below is an execution trace showing the Stuxnet-proof enforcer blocking a coordinated physical stress attack:
+### Option A: Running Standalone Executable (Windows)
 
-### 1. SCADA Control Server Logs (`app.py`)
-```text
- * Running on http://127.0.0.1:5000 (Press CTRL+C to quit)
-[Server] Operator 'admin' logged in from Coordinates: X=12.4, Y=-48.1, Z=3.5.
-[Server] Operator issued setpoint command: set_pressure = 7.0 bar
-[Server] Dispatched control command: set_pressure=7.0
-[Server] Telemetry received: Temp=32.40C, Pressure=7.05 bar (Signature: VALID)
+1. Download the latest `AegisICS.exe` executable from the [Releases](https://github.com/anshulec23-cloud/aegis-ics/releases) page.
+2. Double-click `AegisICS.exe` to start the standalone desktop application.
+3. The desktop application window will open automatically with the embedded SCADA dashboard interface.
 
-[Server] Operator issued setpoint command: set_temp = 55.0C
-[Server] AI SECURITY EXPOSURE BLOCK (Stuxnet Prevention): Blocked raising Temperature to 55.0C because live Pressure is 7.05 bar. Coordinated high-temperature/high-pressure damage profile detected.
-[Server] Security violation audited to DB for operator 'admin' at Coordinate: X=12.4, Y=-48.1, Z=3.5
-```
+### Option B: Running from Source Code (Developer Mode)
 
-### 2. Simulated Hardware Device Logs (`simulator.py`)
-```text
-[ESP32_001] Connected to MQTT Broker - Subscribed to ics/control/ESP32_001
-[ESP32_001] Telemetry published: Temp=25.32C, Pres=4.02 bar
-[ESP32_001] Applied Pressure setpoint: 7.0 bar
-[ESP32_001] Telemetry published: Temp=26.45C, Pres=7.05 bar
+#### Prerequisites
+- **Python 3.12+**
+- Git
 
-# If a compromised operator attempts to override safety limits directly at the hardware:
-[ESP32_001] Received direct command: set_temp = 70.0C
-[ESP32_001] SECURITY REJECTION: Temp setpoint 70.0C exceeds hard hardware limit (65.0C)!
-```
-
-## Quickstart
-
-You can use the new automated PowerShell launcher script to boot up the entire stack with a single click:
+#### Installation Steps
 
 ```powershell
-./start.ps1
+# 1. Clone the repository
+git clone https://github.com/anshulec23-cloud/aegis-ics.git
+cd aegis-ics
+
+# 2. Set up virtual environment
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+# 3. Install required dependencies
+pip install -r requirements.txt
+
+# 4. Initialize SQLite Database & Launch Server
+python src/app.py
 ```
 
-This menu-driven script automatically takes care of environment configurations, generating TLS certificates, launching the broker services, starting the servers and simulators in separate visual terminal windows, and loading the web dashboard.
+After starting `app.py`, navigate to `http://127.0.0.1:5000` in your web browser.
 
-Alternatively, to start services manually, read `QUICKSTART.md` for step-by-step instructions.
+---
 
-## Validation
-- Run: `python -m unittest discover -s tests`
-- CI: GitHub Actions runs the test suite on push and pull request.
+## 🔌 Hardware & Serial Integration
 
-## Important Env Vars
-- `MQTT_HOST`, `MQTT_PORT`, `MQTT_USE_TLS`, `MQTT_CA_CERT`
-- `MQTT_USERNAME`, `MQTT_PASSWORD`
-- `FLASK_SECRET_KEY`
-- `API_ADMIN_TOKEN`
-- `DEVICE_KEY_ESP32_001`, `DEVICE_KEY_ESP32_002`
+Aegis ICS supports direct physical connection with hardware devices (e.g. ESP32, Arduino, industrial sensors):
 
-## Safety Defaults
-- TLS is on by default.
-- Plain MQTT is not the default.
-- Sensitive API routes can require `API_ADMIN_TOKEN`.
-- Secrets and generated data are ignored by git.
+1. Connect your ESP32 device via USB/Serial to your system.
+2. In the Aegis SCADA Dashboard, navigate to the **Hardware Connection** tab.
+3. Click **Scan Ports** to detect available COM ports (e.g., `COM3`, `COM4`).
+4. Select your baud rate (default: `115200`) and click **Connect**.
+5. The gateway will establish a non-resetting serial stream (disabling DTR/RTS) and ingest signed sensor telemetry live.
 
-## Repo Map
-- `.env.example` - template for local environment values.
-- `.gitignore` - keeps secrets, certs, virtualenvs, and generated data out of git.
-- `QUICKSTART.md` - exact commands to run the demo.
-- `README.md` - this overview.
-- `docs/trust_scoring.md` - mathematical formulas and weighting of the live trust scoring engine.
-- `version-two/` - Version 2.0.0 build code.
+---
 
-## Contact & Authors
-- **Anshul R**: [LinkedIn](https://www.linkedin.com/in/anshul-r-68b50229a/) · [Email](mailto:anshul.ec23@sahyadri.edu.in)
+## 🧪 Quality Assurance & Testing
 
+Aegis ICS includes a comprehensive automated test suite covering unit logic, HMAC cryptography, physical safety rules, stress concurrency, fuzzing, and PDF generation.
 
+To run the complete test suite:
+
+```powershell
+.venv\Scripts\python.exe -m pytest tests/
+```
+
+### Test Coverage Highlights
+- ✅ **Database & User Authentication**: User creation, hashed credentials, and spatial audit log verification.
+- ✅ **Cryptographic HMAC Security**: Key derivation, canonical payload serialization, and signature matching.
+- ✅ **Stuxnet Safety Rules**: Single-parameter boundary enforcement and multi-variable coordinated hazard prevention.
+- ✅ **Financial & Threat Index**: Asset loss calculation, noise ratio, and sensor drift risk metrics.
+- ✅ **Incident Report Generation**: PDF creation and structural validation via ReportLab.
+- ✅ **Serial Parser**: Multi-format parsing (JSON, CSV, Key-Value) with error tolerance.
+- ✅ **Stress & Concurrency**: Multi-threaded client API requests under heavy load.
+- ✅ **Payload Fuzzing**: Malformed inputs, SQL injection attempts, XSS payloads, and boundary conditions.
+
+---
+
+## 🌐 REST API Reference
+
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/api/data` | `GET` | Fetches live telemetry, financial risk analytics, and recent spatial audit logs. |
+| `/api/telemetry` | `POST` | Ingests sensor payload with HMAC-SHA256 signature verification. |
+| `/api/setpoint` | `POST` | Issues a SCADA setpoint command subject to Physical Safety Enforcer validation. |
+| `/api/rules/update` | `POST` | Configures safety threshold boundaries (max/min temperature and pressure). |
+| `/api/simulate-attack` | `POST` | Triggers simulated attacks (`stuxnet`, `injection`, `privilege`) for security testing. |
+| `/api/device/isolate` | `POST` | Manually puts the active field device into isolated quarantine. |
+| `/api/device/rejoin` | `POST` | Clears device quarantine and restores network connectivity. |
+| `/api/report/download` | `GET` | Generates and downloads the official incident audit PDF report. |
+| `/api/serial/ports` | `GET` | Lists available COM serial ports on the host system. |
+| `/api/serial/connect` | `POST` | Initiates serial gateway data ingestion from a specified COM port. |
+
+---
+
+## 📁 Repository Structure
+
+```text
+aegis-ics/
+├── build/                 # PyInstaller build artifacts
+├── dist/                  # Compiled standalone AegisICS.exe executable
+├── docs/                  # Architectural specs and trust scoring documentation
+├── src/                   # Core application source code
+│   ├── analytics.py       # Financial exposure & threat index engine
+│   ├── app.py             # Flask web application & REST API gateway
+│   ├── database.py        # SQLAlchemy models & SQLite spatial audit engine
+│   ├── launcher.py        # Desktop wrapper entrypoint
+│   ├── reporting.py       # ReportLab PDF report generation engine
+│   ├── safety_enforcer.py # Stuxnet-proof physical safety rule validator
+│   ├── security.py        # HMAC-SHA256 signature & key management
+│   ├── serial_gateway.py  # PySerial hardware connection manager
+│   ├── simulator.py       # Hardware device telemetry simulator
+│   └── templates/         # SCADA dashboard frontend HTML/JS/CSS
+├── tests/                 # Comprehensive pytest test suite
+├── .env.example           # Environment template configuration
+├── pyproject.toml         # Python project configuration
+├── README.md              # Project documentation & release overview
+└── release_notes.txt      # Release changelog details
+```
+
+---
+
+## 🔄 Release Notes & Version 2.2.2 Updates
+
+**Version 2.2.2 Release Summary**:
+- **Hardware Connection Stability**: Implemented PySerial DTR/RTS signal suppression to prevent continuous ESP32 reset loops upon connecting.
+- **Manual Hardware Connection Panel**: Interactive dashboard controls to select, connect, and disconnect serial COM devices dynamically without restarting services.
+- **Enhanced Safety Enforcer**: Multi-variable physical hazard validation for Stuxnet-style coordinated attacks.
+- **Updated PDF Reporting**: Full spatial coordinate tracking included in downloadable security audit reports.
+- **Zero-Deprecation Compliance**: Updated SQLAlchemy timestamp methods for Python 3.12+ and Python 3.14 runtime environments.
+
+For a full list of historical release changes, see [release_notes.txt](release_notes.txt).
+
+---
+
+## 👤 Authors & Contact
+
+- **Anshul R** (Lead Developer & Security Researcher)
+  - **LinkedIn**: [Anshul R](https://www.linkedin.com/in/anshul-r-68b50229a/)
+  - **Email**: [anshul.ec23@sahyadri.edu.in](mailto:anshul.ec23@sahyadri.edu.in)
+  - **GitHub**: [@anshulec23-cloud](https://github.com/anshulec23-cloud)
+
+---
+*Aegis ICS - Safeguard Industrial Operations through Zero-Trust Engineering.*

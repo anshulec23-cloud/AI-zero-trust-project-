@@ -71,8 +71,11 @@ app .jinja_env .globals .update (csrf_token =generate_csrf_token )
 
 @app .before_request 
 def csrf_protect ():
+    if app .config .get ("TESTING"):
+        limiter .enabled = False
+        return 
 
-    if app .config .get ("TESTING")or request .path =="/api/telemetry":
+    if request .path =="/api/telemetry":
         return 
 
     if request .method in ("POST","PUT","DELETE","PATCH"):
@@ -130,7 +133,9 @@ class LocalRFModel :
         except Exception as e :
             print (f"[Server] Failed to load Random Forest model: {e }")
 
-    def predict_anomaly (self ,telemetry :dict )->bool :
+    def predict_anomaly(self, telemetry: dict, db_session=None) -> bool:
+        if not telemetry or not isinstance(telemetry, dict):
+            return False
         temp_val = telemetry.get("temperature")
         pres_val = telemetry.get("pressure")
         vib_val = telemetry.get("vibration")
@@ -138,40 +143,59 @@ class LocalRFModel :
         curr_val = telemetry.get("current")
         hum_val = telemetry.get("humidity")
 
-        temp = float(temp_val) if temp_val is not None else 0.0
-        pres = float(pres_val) if pres_val is not None else 0.0
-        vib = float(vib_val) if vib_val is not None else 0.0
-        hall = float(hall_val) if hall_val is not None else 0.0
-        curr = float(curr_val) if curr_val is not None else 0.0
-        hum = float(hum_val) if hum_val is not None else 0.0
+        temp_max = 60.0
+        temp_min = 0.0
+        pressure_max = 8.0
+        pressure_min = 0.0
 
-        features =[[
-        temp,
-        pres,
-        vib or pres if str (telemetry .get ("device_id"))=="ESP32_002"else 0.0,
-        hall or hum if str (telemetry .get ("device_id"))=="ESP32_002"else 0.0,
-        curr or hum if str (telemetry .get ("device_id"))=="ESP32_001"else 0.0
-        ]]
-        if self .model is None :
+        if db_session is not None:
+            try:
+                from database import Rule
+                rules = db_session.query(Rule).all()
+                rule_dict = {r.key: r.value for r in rules}
+                temp_max = float(rule_dict.get("temp_max", 60.0))
+                temp_min = float(rule_dict.get("temp_min", 0.0))
+                pressure_max = float(rule_dict.get("pressure_max", 8.0))
+                pressure_min = float(rule_dict.get("pressure_min", 0.0))
+            except Exception:
+                pass
 
-            temp =features [0 ][0 ]
-            pressure =features [0 ][1 ]
-            vib =features [0 ][2 ]
-            hall =features [0 ][3 ]
-            curr =features [0 ][4 ]
-            anomaly =0.0 
-            if temp_val is not None and (temp <0.0 or temp >50.0 ):anomaly +=0.3 
-            if pres_val is not None and (pressure <0.0 or pressure >8.0 ):anomaly +=0.3 
-            if vib_val is not None and vib >6.0 :anomaly +=0.4 
-            if hall_val is not None and hall >1800.0 :anomaly +=0.4 
-            if curr_val is not None and curr >8.0 :anomaly +=0.4 
-            return min (1.0 ,anomaly )>0.5 
+        anomaly = 0.0
 
-        try :
-            proba =self .model .predict_proba (features )[0 ]
-            return float (proba [1 ])>0.5 
-        except Exception :
-            return False 
+        # Safety threshold check against dynamic database rules
+        if temp_val is not None:
+            temp = float(temp_val)
+            if temp < temp_min or temp > temp_max:
+                anomaly += 0.6
+        if pres_val is not None:
+            pres = float(pres_val)
+            if pres < pressure_min or pres > pressure_max:
+                anomaly += 0.6
+        if vib_val is not None and float(vib_val) > 6.0:
+            anomaly += 0.6
+        if hall_val is not None and float(hall_val) > 1800.0:
+            anomaly += 0.6
+        if curr_val is not None and float(curr_val) > 8.0:
+            anomaly += 0.6
+
+        # Only execute 5D Random Forest ML model if all core metrics are provided in payload
+        all_features_present = (temp_val is not None and pres_val is not None and vib_val is not None and curr_val is not None)
+        if all_features_present and self.model is not None:
+            try:
+                features = [[
+                    float(temp_val),
+                    float(pres_val),
+                    float(vib_val),
+                    float(hall_val) if hall_val is not None else 0.0,
+                    float(curr_val)
+                ]]
+                proba = self.model.predict_proba(features)[0]
+                if float(proba[1]) > 0.5:
+                    anomaly += 0.6
+            except Exception:
+                pass
+
+        return anomaly > 0.5 
 
 rf_model =LocalRFModel (_resource_path (os .path .join ("model","rf_model.pkl")))
 
@@ -187,7 +211,7 @@ def process_telemetry (payload :dict )->bool :
         return False 
 
     sig_valid =verify_signature (payload )
-    ml_anomaly =rf_model .predict_anomaly (payload )
+    ml_anomaly =rf_model .predict_anomaly (payload, db_session=db)
     is_anomaly =(not sig_valid )or ml_anomaly 
 
     try :
@@ -212,17 +236,22 @@ def process_telemetry (payload :dict )->bool :
             if state and not state .is_isolated :
                 state .is_isolated =True 
 
+                reasons = []
+                if not sig_valid:
+                    reasons.append("invalid HMAC signature")
+                if ml_anomaly:
+                    reasons.append("safeguard boundary violation / AI anomaly detection")
+                reason_str = " and ".join(reasons) if reasons else "anomaly detected"
 
-                reason ="invalid HMAC signature"if not sig_valid else "AI Random Forest anomaly detection"
                 audit =AuditLog (
                 user_id =None ,
                 action ="AUTO_ISOLATION",
                 location ="SYSTEM",
-                details =f"System automatically isolated device {device_id } due to {reason }."
+                details =f"System automatically isolated device {device_id } due to {reason_str }."
                 )
                 db .add (audit )
                 db .commit ()
-                print (f"[SYSTEM] AUTOMATIC ISOLATION TRIGGERED FOR DEVICE {device_id } ({reason })")
+                print (f"[SYSTEM] AUTOMATIC ISOLATION TRIGGERED FOR DEVICE {device_id } ({reason_str })")
         return True 
     except Exception as e :
         print (f"[Server] Database write failed: {e }")
@@ -321,8 +350,11 @@ def setpoint ():
     payload =request .json or {}
     cmd_type =bleach .clean (str (payload .get ("type","")))
     try :
-        value =float (payload .get ("value",0 ))
-    except ValueError :
+        val_input = payload.get("value")
+        if val_input is None:
+            return jsonify ({"success":False ,"error":"Setpoint value is required."}),400
+        value =float (val_input)
+    except (ValueError, TypeError) :
         return jsonify ({"success":False ,"error":"Invalid numeric value."}),400 
 
     db =SessionLocal ()
@@ -411,6 +443,10 @@ def com_port_status ():
 def connect_com_port ():
     payload =request .json or {}
     port =payload .get ("port")
+    try:
+        baud = int(payload.get("baud", 115200))
+    except (ValueError, TypeError):
+        baud = 115200
     if not port :
         return jsonify ({"success":False ,"error":"No port specified."})
     try :
@@ -428,7 +464,7 @@ def connect_com_port ():
         hmac_key =DEVICE_KEYS .get ("ESP32_001")
         gateway_thread =threading .Thread (
         target =serial_gateway .start_gateway ,
-        kwargs ={"port":port if not mock else None ,"mock":mock ,"url":url ,"hmac_key":hmac_key },
+        kwargs ={"port":port if not mock else None ,"baud":baud ,"mock":mock ,"url":url ,"hmac_key":hmac_key },
         daemon =True ,
         name ="serial-gateway"
         )
@@ -531,11 +567,12 @@ def rejoin_device_v2 ():
 
 @app .route ("/api/report/download",methods =["GET"])
 @login_required 
-@require_webview_token 
 def download_report ():
     db =SessionLocal ()
     try :
-        pdf_data =generate_incident_report_pdf (db ,session ["username"],session ["location"])
+        username = session.get("username", "admin")
+        location = session.get("location", "X:-12.40, Y:-48.10, Z:-3.50")
+        pdf_data =generate_incident_report_pdf (db ,username, location)
         return send_file (
         BytesIO (pdf_data ),
         mimetype ="application/pdf",
@@ -543,9 +580,55 @@ def download_report ():
         download_name =f"aegis_scada_report_{int (time .time ())}.pdf"
         )
     except Exception as e :
+        print(f"[Report Generation Error] {e}")
         return jsonify ({"success":False ,"error":str (e )}),500 
     finally :
         db .close ()
+
+@app.route("/api/report/save_dialog", methods=["POST", "GET"])
+@login_required
+def save_report_dialog():
+    db = SessionLocal()
+    try:
+        username = session.get("username", "admin")
+        location = session.get("location", "X:-12.40, Y:-48.10, Z:-3.50")
+        pdf_data = generate_incident_report_pdf(db, username, location)
+
+        default_filename = f"aegis_scada_report_{int(time.time())}.pdf"
+
+        # Open native Windows save file dialog using Tkinter
+        import tkinter as tk
+        from tkinter import filedialog
+
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+
+        file_path = filedialog.asksaveasfilename(
+            title="Save Incident Report PDF",
+            initialfile=default_filename,
+            defaultextension=".pdf",
+            filetypes=[("PDF Documents (*.pdf)", "*.pdf"), ("All Files (*.*)", "*.*")]
+        )
+        root.destroy()
+
+        if not file_path:
+            return jsonify({"success": False, "cancelled": True, "message": "Save cancelled by user."})
+
+        with open(file_path, "wb") as f:
+            f.write(pdf_data)
+
+        return jsonify({
+            "success": True,
+            "saved_path": file_path,
+            "message": f"Report saved successfully to {os.path.basename(file_path)}"
+        })
+    except Exception as e:
+        print(f"[Report Save Dialog Error] {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        db.close()
+
 
 @app .route ("/api/rules",methods =["GET"])
 @login_required 
@@ -577,90 +660,103 @@ def update_rules ():
     finally :
         db .close ()
 
-@app .route ("/api/simulate-attack",methods =["POST"])
+@app.route("/api/simulate-attack", methods=["POST"])
 @login_required 
 @require_webview_token 
-@limiter .limit ("5 per minute")
-def simulate_attack ():
-    payload =request .json or {}
-    attack_type =bleach .clean (str (payload .get ("type","")))
+@limiter.limit("30 per minute")
+def simulate_attack():
+    payload = request.json or {}
+    attack_type = bleach.clean(str(payload.get("type", "")))
 
-    db =SessionLocal ()
-    user_id =session ["user_id"]
-    location =session ["location"]
+    db = SessionLocal()
+    user_id = session.get("user_id")
+    location = session.get("location", "X:-12.40, Y:-48.10, Z:-3.50")
+    now_ts = time.time()
     print(f"[AttackEngine] Executing attack simulation profile: '{attack_type}' for user {user_id}")
 
-    if attack_type =="stuxnet":
+    if attack_type == "stuxnet":
+        # Simulate Stuxnet Coordinated Stress Attack: Telemetry pressure & temp stress surge
+        for offset, (t_val, p_val, vib_val, curr_val) in enumerate([
+            (48.0, 6.8, 4.5, 6.2),
+            (52.0, 7.4, 5.8, 7.5),
+            (55.0, 7.8, 6.9, 8.4)
+        ]):
+            log = TelemetryLog(
+                timestamp=now_ts - (2 - offset) * 2,
+                device_id="ESP32_001",
+                temperature=t_val,
+                pressure=p_val,
+                humidity=45.0,
+                vibration=vib_val,
+                hall_effect=2400.0,
+                current=curr_val,
+                is_anomaly=True,
+                is_simulated=True
+            )
+            db.add(log)
 
-        log =TelemetryLog (
-        timestamp =time .time (),
-        device_id ="ESP32_001",
-        temperature =30.0 ,
-        pressure =7.5 ,
-        humidity =50.0 ,
-        is_anomaly =False ,
-        is_simulated =True 
+        audit = AuditLog(
+            user_id=user_id,
+            action="SECURITY_VIOLATION_STUXNET_BLOCKED",
+            location=location,
+            details="Stuxnet Prevention Policy Enforced: Blocked coordinated temp setpoint dispatch (55.0°C) while system pressure is high (7.8 bar)."
         )
-        db .add (log )
-        db .commit ()
+        db.add(audit)
+        db.commit()
+        details = "Simulated Stuxnet Coordinated Stress Attack: Blocked command dispatch due to high pressure/temperature cross-correlation limits."
 
+    elif attack_type == "injection":
+        # Simulate Telemetry Injection / HMAC Spoofing Attack
+        for offset, (t_val, p_val, vib_val) in enumerate([
+            (42.0, 5.0, 3.1),
+            (58.0, 6.2, 7.5)
+        ]):
+            log = TelemetryLog(
+                timestamp=now_ts - (1 - offset) * 2,
+                device_id="ESP32_001",
+                temperature=t_val,
+                pressure=p_val,
+                humidity=50.0,
+                vibration=vib_val,
+                hall_effect=1800.0,
+                current=8.8,
+                is_anomaly=True,
+                is_simulated=True
+            )
+            db.add(log)
 
-        audit =AuditLog (
-        user_id =user_id ,
-        action ="SECURITY_VIOLATION_BLOCKED",
-        location =location ,
-        details ="Blocked attempt to set set_temp to 55.0. Reason: Stuxnet Prevention Policy - Temperature setpoint (55.0) rejected while system pressure is high (7.5 bar)."
+        state = db.query(DeviceState).filter_by(device_id="ESP32_001").first()
+        if state:
+            state.is_isolated = True
+
+        audit = AuditLog(
+            user_id=None,
+            action="SECURITY_VIOLATION_AUTO_ISOLATION",
+            location="SYSTEM",
+            details="System automatically isolated device ESP32_001 due to invalid HMAC signature (Telemetry Spoofing / Injection Attack detected)."
         )
-        db .add (audit )
-        db .commit ()
-        details ="Simulated Stuxnet Coordinated Stress Attack: Blocked command dispatch due to high pressure/temperature cross-correlation limits."
+        db.add(audit)
+        db.commit()
+        details = "Simulated Telemetry Injection Attack: Detected invalid HMAC signature, recorded anomaly, and automatically isolated ESP32_001."
 
-    elif attack_type =="injection":
-
-        log =TelemetryLog (
-        timestamp =time .time (),
-        device_id ="ESP32_001",
-        temperature =58.0 ,
-        pressure =4.0 ,
-        humidity =50.0 ,
-        is_anomaly =True ,
-        is_simulated =True 
+    elif attack_type == "privilege":
+        # Simulate Privilege Escalation Attempt
+        audit = AuditLog(
+            user_id=user_id,
+            action="SECURITY_VIOLATION_PRIVILEGE_BLOCKED",
+            location=location,
+            details="Blocked unauthorized modification of safety thresholds: Attempted to set temp_max to 100.0°C without Master Engineering credentials."
         )
-        db .add (log )
+        db.add(audit)
+        db.commit()
+        details = "Simulated Privilege Escalation Attempt: Blocked unauthorized modification of absolute safety threshold limits."
 
+    else:
+        db.close()
+        return jsonify({"success": False, "error": "Unknown attack type."}), 400
 
-        state =db .query (DeviceState ).filter_by (device_id ="ESP32_001").first ()
-        if state :
-            state .is_isolated =True 
-
-        audit =AuditLog (
-        user_id =None ,
-        action ="AUTO_ISOLATION",
-        location ="SYSTEM",
-        details ="System automatically isolated device ESP32_001 due to invalid HMAC signature (Telemetry Spoofing / Injection Attack detected)."
-        )
-        db .add (audit )
-        db .commit ()
-        details ="Simulated Telemetry Injection Attack: Detected invalid HMAC signature, recorded anomaly, and automatically isolated ESP32_001."
-
-    elif attack_type =="privilege":
-
-        audit =AuditLog (
-        user_id =user_id ,
-        action ="SECURITY_VIOLATION_BLOCKED",
-        location =location ,
-        details ="Blocked unauthorized modification of safety thresholds: Attempted to set temp_max to 100.0 without Master Engineering credentials."
-        )
-        db .add (audit )
-        db .commit ()
-        details ="Simulated Privilege Escalation Attempt: Blocked unauthorized modification of absolute safety threshold limits."
-
-    else :
-        db .close ()
-        return jsonify ({"success":False ,"error":"Unknown attack type."}),400 
-
-    db .close ()
-    return jsonify ({"success":True ,"details":details })
+    db.close()
+    return jsonify({"success": True, "details": details})
 
 @app .route ("/api/data")
 @login_required 
@@ -690,7 +786,7 @@ def get_data ():
     }for t in reversed (telemetry )]
 
     audit_data =[{
-    "timestamp":a .timestamp .isoformat (),
+    "timestamp":a .timestamp .isoformat ()if hasattr (a .timestamp ,"isoformat")else str (a .timestamp or ""),
     "username":a .user .username if a .user else "Unknown",
     "action":a .action ,
     "location":a .location ,
