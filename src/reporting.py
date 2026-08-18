@@ -273,27 +273,90 @@ def generate_incident_report_pdf(db_session, username, location):
     story.append(t_attack)
     story.append(Spacer(1, 8))
 
-    # --- 3. Telemetry Dynamics & Sensor Plot ---
-    story.append(Paragraph("3. Sensor Telemetry & Physical Dynamics Plot", h2_style))
-    telemetry = db_session.query(TelemetryLog).order_by(TelemetryLog.timestamp.desc()).limit(35).all()
+    # --- 3. Multi-ESP32 Modbus Node Telemetry & Physical Dynamics ---
+    story.append(Paragraph("3. Multi-ESP32 Modbus Node Telemetry & Physical Dynamics", h2_style))
+    story.append(Paragraph(
+        "Real-time sensor telemetry matrix and dynamics collected via HMAC-SHA256 authenticated Modbus links across "
+        "the Master PLC Controller and Mini ESP32 Slave nodes:",
+        body_style
+    ))
 
-    if telemetry:
-        chrono_telemetry = list(reversed(telemetry))
+    # Multi-node status table
+    all_telemetry = db_session.query(TelemetryLog).order_by(TelemetryLog.timestamp.desc()).limit(100).all()
+    device_nodes = {}
+    for t in all_telemetry:
+        dev = t.device_id or "ESP32_001"
+        if dev not in device_nodes:
+            device_nodes[dev] = t
+
+    if not device_nodes and all_telemetry:
+        device_nodes["ESP32_001"] = all_telemetry[0]
+
+    node_headers = [
+        Paragraph("Node ID / Role", table_header),
+        Paragraph("Temp (°C)", table_header),
+        Paragraph("Pressure (bar)", table_header),
+        Paragraph("Vibration (g)", table_header),
+        Paragraph("Speed (RPM)", table_header),
+        Paragraph("Current (A)", table_header),
+        Paragraph("Node Status", table_header)
+    ]
+    node_rows = [node_headers]
+
+    for dev_id, t_node in sorted(device_nodes.items()):
+        temp_str = f"{t_node.temperature:.1f} °C" if t_node.temperature is not None else "N/A"
+        pres_str = f"{t_node.pressure:.2f} bar" if t_node.pressure is not None else "N/A"
+        vib_str = f"{t_node.vibration:.2f} g" if t_node.vibration is not None else "N/A"
+        rpm_str = f"{t_node.hall_effect:.0f} RPM" if t_node.hall_effect is not None else "N/A"
+        curr_str = f"{t_node.current:.2f} A" if t_node.current is not None else "N/A"
+
+        role_desc = "Master Controller" if "001" in dev_id or "MAIN" in dev_id else "Modbus Slave Node"
+        node_label = f"<b>{dev_id}</b><br/><font size='6' color='#4B5563'>{role_desc}</font>"
+
+        status_text = "<font color='#A91D22'><b>ANOMALY</b></font>" if t_node.is_anomaly else "<font color='#1E7E34'><b>NORMAL</b></font>"
+
+        node_rows.append([
+            Paragraph(node_label, table_text),
+            Paragraph(temp_str, table_text),
+            Paragraph(pres_str, table_text),
+            Paragraph(vib_str, table_text),
+            Paragraph(rpm_str, table_text),
+            Paragraph(curr_str, table_text),
+            Paragraph(status_text, table_text)
+        ])
+
+    t_nodes = Table(node_rows, colWidths=[120, 65, 75, 70, 75, 65, 70])
+    t_nodes.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), SECONDARY_SLATE),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('LEFTPADDING', (0, 0), (-1, -1), 5),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, BG_LIGHT_GREY]),
+        ('GRID', (0, 0), (-1, -1), 0.5, BORDER_GREY),
+    ]))
+    story.append(t_nodes)
+    story.append(Spacer(1, 6))
+
+    # Time-series dynamic sensor plot
+    if all_telemetry:
+        chrono_telemetry = list(reversed(all_telemetry[:35]))
         valid_telemetry = [t for t in chrono_telemetry if t.temperature is not None and t.pressure is not None]
         if valid_telemetry:
-            drawing = Drawing(540, 130)
-            drawing.add(Rect(0, 0, 540, 130, fillColor=BG_LIGHT_GREY, strokeColor=BORDER_GREY, strokeWidth=0.5))
+            drawing = Drawing(540, 115)
+            drawing.add(Rect(0, 0, 540, 115, fillColor=BG_LIGHT_GREY, strokeColor=BORDER_GREY, strokeWidth=0.5))
 
             temp_pts = []
             pres_pts = []
             for idx, t in enumerate(valid_telemetry):
                 x = 50 + (idx / max(1, len(valid_telemetry) - 1)) * 440
-                y_temp = 20 + (min(80.0, max(0.0, float(t.temperature))) / 80.0) * 90
-                y_pres = 20 + (min(10.0, max(0.0, float(t.pressure))) / 10.0) * 90
+                y_temp = 18 + (min(80.0, max(0.0, float(t.temperature))) / 80.0) * 80
+                y_pres = 18 + (min(10.0, max(0.0, float(t.pressure))) / 10.0) * 80
                 temp_pts.append((x, y_temp))
                 pres_pts.append((x, y_pres))
 
-            for y_val in [20, 42.5, 65, 87.5, 110]:
+            for y_val in [18, 38, 58, 78, 98]:
                 drawing.add(Line(50, y_val, 490, y_val, strokeColor=colors.HexColor('#E5E7EB'), strokeWidth=0.5))
 
             for i in range(len(temp_pts) - 1):
@@ -306,15 +369,16 @@ def generate_incident_report_pdf(db_session, username, location):
                 p2 = pres_pts[i + 1]
                 drawing.add(Line(p1[0], p1[1], p2[0], p2[1], strokeColor=CRIMSON_ACCENT, strokeWidth=1, strokeDashArray=[3, 3]))
 
-            drawing.add(String(10, 110, "Temp (°C)", fontName="Helvetica-Bold", fontSize=7, fillColor=PRIMARY_NAVY))
-            drawing.add(String(498, 110, "Pres (bar)", fontName="Helvetica-Bold", fontSize=7, fillColor=CRIMSON_ACCENT))
-            drawing.add(String(10, 65, "40°C / 5bar", fontName="Helvetica", fontSize=6, fillColor=TEXT_MUTED))
-            drawing.add(String(10, 20, "0°C / 0bar", fontName="Helvetica", fontSize=6, fillColor=TEXT_MUTED))
+            drawing.add(String(10, 98, "Temp (°C)", fontName="Helvetica-Bold", fontSize=7, fillColor=PRIMARY_NAVY))
+            drawing.add(String(498, 98, "Pres (bar)", fontName="Helvetica-Bold", fontSize=7, fillColor=CRIMSON_ACCENT))
+            drawing.add(String(10, 58, "40°C / 5bar", fontName="Helvetica", fontSize=6, fillColor=TEXT_MUTED))
+            drawing.add(String(10, 18, "0°C / 0bar", fontName="Helvetica", fontSize=6, fillColor=TEXT_MUTED))
 
             story.append(drawing)
     else:
         story.append(Paragraph("No telemetry readings available for charting.", body_style))
     story.append(Spacer(1, 8))
+
 
     # --- 4. Chronological System & Audit Log Narrative ---
     story.append(Paragraph("4. Chronological Audit Trail & System Event Log", h2_style))

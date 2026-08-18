@@ -1,11 +1,22 @@
 import os 
+import sys
 from datetime import datetime ,timezone 
 from sqlalchemy import create_engine ,Column ,Integer ,String ,Float ,Boolean ,ForeignKey ,DateTime ,event 
 from sqlalchemy .ext .declarative import declarative_base 
 from sqlalchemy .orm import sessionmaker ,relationship 
 from werkzeug .security import generate_password_hash 
 
-DATABASE_URL =os .environ .get ("DATABASE_URL","sqlite:///aegis_v2.db")
+def get_database_url():
+    if "DATABASE_URL" in os.environ:
+        return os.environ["DATABASE_URL"]
+    if getattr(sys, "frozen", False):
+        base_dir = os.path.dirname(sys.executable)
+    else:
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    db_file = os.path.join(base_dir, "aegis_v2.db")
+    return f"sqlite:///{db_file}"
+
+DATABASE_URL = get_database_url()
 
 engine =create_engine (DATABASE_URL ,connect_args ={"check_same_thread":False ,"timeout":15 })
 
@@ -58,6 +69,7 @@ class DeviceState (Base ):
     id =Column (Integer ,primary_key =True )
     device_id =Column (String (50 ),unique =True ,nullable =False )
     is_isolated =Column (Boolean ,default =False )
+    trust_score =Column (Float ,default =100.0 )
     updated_at =Column (DateTime ,default =lambda :datetime .now (timezone .utc ))
 
 class Rule (Base ):
@@ -105,6 +117,13 @@ def migrate_sqlite_schema ():
                 cursor .execute ("ALTER TABLE telemetry_logs_new RENAME TO telemetry_logs;")
                 conn .commit ()
                 print ("[Database] Schema migration complete.")
+
+            # Ensure device_states has trust_score column
+            dev_cols = cursor.execute("PRAGMA table_info('device_states')").fetchall()
+            if dev_cols and not any(row[1] == "trust_score" for row in dev_cols):
+                cursor.execute("ALTER TABLE device_states ADD COLUMN trust_score FLOAT DEFAULT 100.0;")
+                conn.commit()
+
             conn .close ()
         except Exception as e :
             print (f"[Database] Auto-migration note: {e }")
@@ -127,15 +146,14 @@ def init_db ():
         "temp_max":(60.0 ,"Absolute maximum allowed temperature setpoint (C)"),
         "temp_min":(0.0 ,"Absolute minimum allowed temperature setpoint (C)"),
         "pressure_max":(8.0 ,"Absolute maximum allowed pressure setpoint (bar)"),
-        "pressure_min":(0.0 ,"Absolute minimum allowed pressure setpoint (bar)")
+        "pressure_min":(0.0 ,"Absolute minimum allowed pressure setpoint (bar)"),
+        "vibration_max":(4.0 ,"Absolute maximum allowed mechanical vibration ceiling (g)"),
+        "current_max":(15.0 ,"Absolute maximum electrical motor current ceiling (A)"),
+        "hall_max":(3500.0 ,"Absolute maximum rotor speed ceiling (RPM)")
         }
         for key ,(val ,desc )in rules .items ():
             if not db .query (Rule ).filter_by (key =key ).first ():
                 db .add (Rule (key =key ,value =val ,description =desc ))
-
-
-        if not db .query (DeviceState ).filter_by (device_id ="ESP32_001").first ():
-            db .add (DeviceState (device_id ="ESP32_001",is_isolated =False ))
 
         db .commit ()
     finally :

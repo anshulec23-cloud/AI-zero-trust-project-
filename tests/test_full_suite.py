@@ -150,6 +150,7 @@ def test_financial_analytics():
         # Test 1: Empty database
         db.query(TelemetryLog).delete()
         db.query(AuditLog).delete()
+        db.query(DeviceState).delete()
         db.commit()
 
         fin = calculate_financial_analytics(db)

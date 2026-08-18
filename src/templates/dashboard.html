@@ -1,1186 +1,1124 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aegis SCADA Terminal — Live Overview</title>
+    <title>AEGIS ICS // ZERO-TRUST SCADA CONSOLE</title>
     <!-- CSRF Token Meta -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    
+    <!-- Clean Industrial Typography: JetBrains Mono & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS & Chart.js -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
+        :root {
+            --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            
+            --bg-base: #09090b;
+            --bg-panel: #121215;
+            --bg-subpanel: #18181b;
+            --border-panel: #27272a;
+            --border-highlight: #3f3f46;
+            
+            --amber: #f59e0b;
+            --emerald: #10b981;
+            --cyan: #06b6d4;
+            --crimson: #ef4444;
+            --violet: #8b5cf6;
+            --zinc-dim: #71717a;
+            --zinc-bright: #d4d4d8;
+        }
+
+        * { box-sizing: border-box; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #000000;
-            color: #f5f5f7;
+            font-family: var(--font-mono);
+            background-color: var(--bg-base);
+            color: var(--zinc-bright);
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
         }
-        .apple-card {
-            background-color: rgba(22, 22, 23, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+
+        /* Bloomberg Terminal Sharp Panel */
+        .scada-panel {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border-panel);
+            position: relative;
         }
-        .apple-border {
-            border: 1px solid rgba(255, 255, 255, 0.08);
+
+        .scada-header {
+            background-color: var(--bg-subpanel);
+            border-bottom: 1px solid var(--border-panel);
+            padding: 6px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
-        .apple-input {
-            background-color: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            color: #f5f5f7;
-            transition: all 0.2s ease;
+
+        .scada-input {
+            background-color: #09090b;
+            border: 1px solid var(--border-panel);
+            color: #f4f4f5;
+            font-family: var(--font-mono);
+            font-size: 11px;
         }
-        .apple-input:focus {
-            border-color: rgba(255, 255, 255, 0.3);
-            background-color: rgba(255, 255, 255, 0.06);
+
+        .scada-input:focus {
+            border-color: var(--amber);
             outline: none;
         }
-        .apple-btn {
-            background-color: #ffffff;
-            color: #000000;
-            transition: all 0.2s ease;
+
+        .status-pill {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            padding: 2px 6px;
+            border: 1px solid var(--border-panel);
+            background-color: #09090b;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
         }
-        .apple-btn:hover {
-            background-color: #e8e8ed;
+
+        /* Action Buttons */
+        .btn-act-shutdown {
+            background: #450a0a;
+            border: 1px solid #991b1b;
+            color: #fca5a5;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            cursor: pointer;
         }
-        /* Custom scrollbar for minimalist scroll style */
-        ::-webkit-scrollbar {
-            width: 4px;
-            height: 4px;
+        .btn-act-shutdown:hover { background: #7f1d1d; color: #fff; }
+
+        .btn-act-reset {
+            background: #451a03;
+            border: 1px solid #92400e;
+            color: #fcd34d;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            cursor: pointer;
         }
-        ::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.2);
+        .btn-act-reset:hover { background: #78350f; color: #fff; }
+
+        .btn-act-clear {
+            background: #18181b;
+            border: 1px solid #3f3f46;
+            color: #e4e4e7;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            cursor: pointer;
         }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 2px;
+        .btn-act-clear:hover { background: #27272a; color: #fff; }
+
+        .btn-act-ping {
+            background: #083344;
+            border: 1px solid #155e75;
+            color: #67e8f9;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            cursor: pointer;
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
+        .btn-act-ping:hover { background: #0e7490; color: #fff; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: #09090b; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 0; }
+        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col p-6 sm:p-10 select-none">
+<body class="min-h-screen flex flex-col p-2 space-y-2 select-none">
 
-    <!-- Minimal Header -->
-    <header class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-white/10 pb-6 mb-8 gap-4">
-        <div>
-            <h1 class="text-2xl font-medium tracking-tight text-white">Aegis SCADA Overview</h1>
-            <p class="text-xs text-[#86868b] mt-1 font-light tracking-wide">STATUS: SECURE DEPLOYMENT LOOP · STUXNET ENFORCEMENT ENGINE ACTIVE</p>
-        </div>
+    <!-- Top Toast Notification Box -->
+    <div id="toast-container" class="fixed top-3 right-3 z-50 flex flex-col gap-1 pointer-events-none"></div>
+
+    <!-- 1. TOP HEADER & TELEMETRY LINK BAR -->
+    <header class="scada-panel p-2 flex flex-wrap items-center justify-between gap-3 text-xs">
         
-        <div class="flex flex-wrap items-center gap-6">
-            <!-- Tabs Menu -->
-            <nav class="flex gap-1 bg-white/[0.02] border border-white/5 p-1 rounded-xl text-xs">
-                <button id="tab-btn-monitor" onclick="switchTab('monitor')" class="px-4 py-2 rounded-lg font-medium text-white bg-white/5 transition duration-150">
-                    SCADA Monitor
-                </button>
-                <button id="tab-btn-risk" onclick="switchTab('risk')" class="px-4 py-2 rounded-lg font-medium text-[#86868b] hover:text-white transition duration-150">
-                    Breach & Risk Projections
-                </button>
-            </nav>
+        <!-- Left: Brand & Mode -->
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
+                <span class="inline-block w-2.5 h-2.5 bg-amber-500 rounded-none animate-pulse"></span>
+                <span class="text-sm font-bold text-white tracking-wider">AEGIS.ICS</span>
+            </div>
+            <span class="text-zinc-500 font-mono">|</span>
+            <span class="status-pill text-emerald-400 border-emerald-900 bg-emerald-950/40">ZERO-TRUST SCADA</span>
+            <span id="model-status-pill" class="status-pill text-emerald-400 border-emerald-900 bg-emerald-950/40">ML: ONLINE</span>
+            <span id="topology-count-pill" class="status-pill text-cyan-400 border-cyan-900 bg-cyan-950/40">NODES: 0</span>
+        </div>
 
-            <!-- Download PDF Incident Report -->
-            <button onclick="downloadReport()" class="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium px-4 py-2 rounded-xl text-xs transition duration-150 flex items-center gap-2">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                Download PDF Incident Report
+        <!-- Center: COM Port & Baud Rate Hardware Controls + Quick Mock Simulation -->
+        <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5 bg-[#09090b] border border-zinc-800 px-2 py-1">
+                <span class="text-[10px] text-zinc-400 font-semibold uppercase">UART:</span>
+                <select id="com-port-select" class="scada-input bg-transparent border-0 text-white font-mono text-[11px] focus:outline-none cursor-pointer">
+                    <option value="MOCK" selected>MOCK_SIMULATION (Virtual ESP32 Gateway)</option>
+                </select>
+                <button onclick="scanComPorts()" title="Rescan COM Ports" class="text-zinc-400 hover:text-amber-400 px-1 font-mono text-[10px]">↻</button>
+            </div>
+
+            <div class="flex items-center gap-1.5 bg-[#09090b] border border-zinc-800 px-2 py-1">
+                <span class="text-[10px] text-zinc-400 font-semibold uppercase">BAUD:</span>
+                <select id="baud-rate-select" class="scada-input bg-transparent border-0 text-white font-mono text-[11px] focus:outline-none cursor-pointer">
+                    <option value="115200" selected>115200</option>
+                    <option value="9600">9600</option>
+                    <option value="57600">57600</option>
+                    <option value="230400">230400</option>
+                </select>
+            </div>
+
+            <button id="btn-com-connect" onclick="toggleComConnection()" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-black font-bold text-[11px] tracking-wider uppercase transition-colors cursor-pointer">
+                CONNECT
             </button>
+        </div>
 
-            <div class="flex flex-wrap items-center gap-6 text-xs bg-white/[0.02] border border-white/5 px-5 py-3 rounded-xl">
-                <div class="flex items-center gap-2">
-                    <span class="text-[#86868b] font-light">Operator:</span>
-                    <span class="text-white font-medium">{{ username }}</span>
-                </div>
-                <div class="h-4 w-[1px] bg-white/10"></div>
-                <div class="flex items-center gap-2">
-                    <span class="text-[#86868b] font-light">Coords:</span>
-                    <span class="text-white font-mono font-medium">{{ location }}</span>
-                </div>
-                <div class="h-4 w-[1px] bg-white/10"></div>
-                <a href="/logout" class="text-red-400 hover:text-red-300 transition font-medium">Disconnect</a>
+        <!-- Right: Time, Report Export & Operator Profile -->
+        <div class="flex items-center gap-2">
+            <button onclick="downloadReport()" class="px-2.5 py-1 bg-[#18181b] hover:bg-[#27272a] border border-zinc-700 text-zinc-200 font-bold text-[11px] flex items-center gap-1.5 cursor-pointer" title="Save Forensic PDF Report to disk">
+                <span>EXPORT FORENSIC PDF</span>
+                <span class="text-amber-500">▼</span>
+            </button>
+            <a href="/api/report/download" target="_blank" class="px-2 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white font-mono text-[10px] uppercase font-bold" title="Direct browser download fallback">
+                ↓ DIRECT
+            </a>
+
+            <div class="text-right text-[10px] font-mono leading-tight border-l border-zinc-800 pl-3">
+                <div class="text-zinc-300 font-bold" id="clock-utc">UTC: --:--:--</div>
+                <div class="text-zinc-500" id="clock-local">LOC: --:--:--</div>
+            </div>
+
+            <div class="flex items-center gap-2 border-l border-zinc-800 pl-3">
+                <span class="status-pill text-zinc-400 border-zinc-800">{{ session.get('username', 'OPERATOR') }}</span>
+                <a href="/logout" class="text-red-400 hover:text-red-300 font-bold text-[10px] uppercase">EXIT</a>
             </div>
         </div>
     </header>
 
-    <!-- Alert Banner System -->
-    <div id="alert-banner" class="hidden text-xs px-5 py-4 rounded-xl mb-6 font-light transition duration-300"></div>
-
-    <!-- Update Notification Banner (injected by auto-updater) -->
-    <div id="update-banner" class="hidden text-xs px-5 py-4 rounded-xl mb-6 font-light bg-sky-500/10 border border-sky-500/30 text-sky-200 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-            <svg class="w-4 h-4 text-sky-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-            <span id="update-banner-text">A new version is available.</span>
-        </div>
-        <div class="flex items-center gap-3">
-            <a id="update-banner-link" href="#" target="_blank" class="bg-sky-500/20 hover:bg-sky-500/30 px-3 py-1.5 rounded-lg text-sky-100 font-medium transition">Download</a>
-            <button onclick="document.getElementById('update-banner').classList.add('hidden')" class="text-sky-400/60 hover:text-sky-300 transition">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-        </div>
-    </div>
-
-    <!-- MAIN SCADA MONITOR VIEW -->
-    <div id="view-monitor" class="grid grid-cols-1 xl:grid-cols-3 gap-8 flex-grow">
+    <!-- 2. TOP BLOOMBERG KPI STRIP (8 Dense Tiles) -->
+    <section class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1.5">
         
-        <!-- Left Side: Hardware Connection, Setpoint Inputs, Safety Thresholds, and Manual Isolation -->
-        <div class="space-y-8 xl:col-span-1">
+        <!-- Tile 1: Temp Mean -->
+        <div class="scada-panel p-2">
+            <div class="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">AVG TEMPERATURE</div>
+            <div id="stat-temp-mean" class="text-base font-bold text-white mt-0.5 font-mono">--.- °C</div>
+            <div class="text-[9px] text-zinc-500">SET: 20.0-55.0°C</div>
+        </div>
+
+        <!-- Tile 2: Temp Rolling Variance -->
+        <div class="scada-panel p-2">
+            <div class="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">TEMP VARIANCE</div>
+            <div id="stat-temp-var" class="text-base font-bold text-emerald-400 mt-0.5 font-mono">--.-</div>
+            <div class="text-[9px] text-zinc-500">NORM: &lt; 2.50</div>
+        </div>
+
+        <!-- Tile 3: Thermal Drift Rate -->
+        <div class="scada-panel p-2">
+            <div class="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">THERMAL DRIFT</div>
+            <div id="stat-temp-drift" class="text-base font-bold text-cyan-400 mt-0.5 font-mono">--.- °C/m</div>
+            <div class="text-[9px] text-zinc-500">TOL: ±2.0°C/min</div>
+        </div>
+
+        <!-- Tile 4: Pearson Correlation (r) -->
+        <div class="scada-panel p-2">
+            <div class="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">PEARSON CORR (r)</div>
+            <div id="stat-pearson-r" class="text-base font-bold text-amber-400 mt-0.5 font-mono">N/A</div>
+            <div class="text-[9px] text-zinc-500">T/P SYNC DYNAMICS</div>
+        </div>
+
+        <!-- Tile 5: Max Vibration -->
+        <div class="scada-panel p-2">
+            <div class="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">MAX VIBRATION</div>
+            <div id="kpi-vib" class="text-base font-bold text-white mt-0.5 font-mono">--.- g</div>
+            <div class="text-[9px] text-zinc-500">CEILING: 4.00 g</div>
+        </div>
+
+        <!-- Tile 6: Rotor Speed -->
+        <div class="scada-panel p-2">
+            <div class="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">ROTOR VELOCITY</div>
+            <div id="kpi-hall" class="text-base font-bold text-white mt-0.5 font-mono">--.- RPM</div>
+            <div class="text-[9px] text-zinc-500">RATED: 3000 RPM</div>
+        </div>
+
+        <!-- Tile 7: Motor Current -->
+        <div class="scada-panel p-2">
+            <div class="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">MOTOR CURRENT</div>
+            <div id="kpi-curr" class="text-base font-bold text-white mt-0.5 font-mono">--.- A</div>
+            <div class="text-[9px] text-zinc-500">LIMIT: 15.00 A</div>
+        </div>
+
+        <!-- Tile 8: Cyber Threat Index -->
+        <div class="scada-panel p-2 border-amber-900/60 bg-[#16120a]">
+            <div class="text-[9px] text-amber-500 font-bold uppercase tracking-wider">DEFENSE THREAT</div>
+            <div id="risk-pct-label" class="text-base font-bold text-amber-400 mt-0.5 font-mono">0.0%</div>
+            <div id="threat-status-tag" class="text-[9px] text-emerald-400 font-bold">ALL NODES SECURE</div>
+        </div>
+    </section>
+
+    <!-- 3. MAIN MULTI-PANE SCADA WORKSPACE -->
+    <main class="grid grid-cols-1 lg:grid-cols-12 gap-2 flex-grow">
+        
+        <!-- LEFT COLUMN: Dynamic Modbus Slave Matrix & Real Hardware Node Controls (3 Cols) -->
+        <div class="lg:col-span-3 flex flex-col gap-2">
             
-            <!-- Hardware Connection Card -->
-            <div class="apple-card rounded-2xl p-6 shadow-lg">
-                <h2 class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
-                    Hardware Connection
-                </h2>
-                <div class="space-y-4">
-                    <div class="flex justify-between items-center text-xs">
-                        <span class="text-[#86868b]">Active Port:</span>
-                        <span id="active-com-port" class="font-medium px-2 py-1 rounded text-amber-400 bg-amber-500/10 border border-amber-500/30">DISCONNECTED</span>
-                    </div>
-                    
-                    <div class="space-y-2">
-                        <label class="block text-xs text-[#86868b] uppercase tracking-wider font-semibold">Select Device Port & Baud</label>
-                        <div class="flex gap-2">
-                            <select id="com-port-select" class="w-full apple-input rounded-xl px-3 py-2.5 text-sm">
-                                <option value="MOCK">MOCK (Software Emulation)</option>
-                            </select>
-                            <select id="baud-rate-select" class="apple-input rounded-xl px-2 py-2.5 text-sm w-28 text-white bg-white/5 border border-white/10">
-                                <option value="115200" selected>115200</option>
-                                <option value="9600">9600</option>
-                                <option value="57600">57600</option>
-                                <option value="38400">38400</option>
-                            </select>
-                            <button onclick="scanComPorts()" title="Scan for devices" class="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium px-4 py-2.5 rounded-xl transition duration-150 flex-shrink-0">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="flex gap-3 pt-2 border-t border-white/5">
-                        <button onclick="connectComPort()" class="flex-1 bg-white text-black hover:bg-[#e8e8ed] py-2.5 rounded-xl text-xs font-semibold tracking-wide transition duration-150">
-                            Connect
-                        </button>
-                        <button onclick="disconnectComPort()" class="flex-1 bg-red-600 hover:bg-red-500 text-white py-2.5 rounded-xl text-xs font-semibold tracking-wide transition duration-150">
-                            Disconnect
-                        </button>
-                    </div>
+            <!-- Dynamic Slave Node Matrix Card -->
+            <div class="scada-panel flex-grow flex flex-col min-h-[480px]">
+                <div class="scada-header">
+                    <span>DYNAMIC MODBUS SLAVE MATRIX</span>
+                    <span id="matrix-node-count" class="text-[10px] text-zinc-500">0 NODES</span>
+                </div>
+
+                <div id="slave-nodes-container" class="p-2 space-y-2 flex-grow overflow-y-auto max-h-[620px]">
+                    <!-- Dynamically populated per live slave count -->
                 </div>
             </div>
+        </div>
 
-            <!-- Setpoint Control Card -->
-            <div class="apple-card rounded-2xl p-6 shadow-lg">
-                <h2 class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
-                    Setpoint Commands
-                </h2>
+        <!-- CENTER COLUMN: Dynamic Per-Slave Stacked Area Panels + AGGREGATOR GRAPH (6 Cols) -->
+        <div class="lg:col-span-6 flex flex-col gap-2">
+            
+            <!-- Dynamic Per-Slave Panels Grid (Dynamically renders 1, 2, 3, 4, 6 cards) -->
+            <div id="dynamic-slave-cards-grid" class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <!-- Populated dynamically via JS -->
+            </div>
+
+            <!-- AGGREGATOR GRAPH (Hexagonal Density Correlation Plot) -->
+            <div class="scada-panel p-2 flex-grow flex flex-col min-h-[220px]">
+                <div class="scada-header -mx-2 -mt-2 mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="inline-block w-2 h-2 bg-cyan-400"></span>
+                        <span>AGGREGATOR GRAPH</span>
+                    </div>
+                    <!-- Axis Selectors -->
+                    <div class="flex items-center gap-2 text-[10px] font-mono normal-case">
+                        <span class="text-zinc-500">X:</span>
+                        <select id="hex-axis-x" onchange="redrawHexbin()" class="scada-input bg-[#09090b] px-1 py-0.5 text-zinc-300">
+                            <option value="temperature" selected>Temperature (°C)</option>
+                            <option value="pressure">Pressure (bar)</option>
+                            <option value="current">Current (A)</option>
+                            <option value="vibration">Vibration (g)</option>
+                            <option value="hall_effect">Rotor RPM</option>
+                        </select>
+                        <span class="text-zinc-500">Y:</span>
+                        <select id="hex-axis-y" onchange="redrawHexbin()" class="scada-input bg-[#09090b] px-1 py-0.5 text-zinc-300">
+                            <option value="pressure" selected>Pressure (bar)</option>
+                            <option value="temperature">Temperature (°C)</option>
+                            <option value="current">Current (A)</option>
+                            <option value="vibration">Vibration (g)</option>
+                            <option value="hall_effect">Rotor RPM</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Hexbin Canvas -->
+                <div class="relative h-48 w-full bg-[#09090b] border border-zinc-800/80 flex items-center justify-center">
+                    <canvas id="canvas-hexbin" class="w-full h-full"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Purpose-Built Cyber Risk Analytics (Radar, Doughnut, Contour, Financials) (3 Cols) -->
+        <div class="lg:col-span-3 flex flex-col gap-2">
+            
+            <!-- Cyber-Risk Posture Radar & Damage Doughnut (Top Side-by-Side in Right Pane) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
                 
-                <div class="space-y-6">
-                    <!-- Temperature Input -->
-                    <div class="space-y-2">
-                        <label class="block text-xs text-[#86868b] uppercase tracking-wider font-semibold">Temperature (C)</label>
-                        <div class="flex gap-3">
-                            <input type="number" id="temp-input" class="w-full apple-input rounded-xl px-4 py-2.5 text-sm" placeholder="e.g. 40.0" step="0.1">
-                            <button onclick="updateSetpoint('set_temp')" class="apple-btn text-xs font-medium px-5 py-2.5 rounded-xl">
-                                Dispatch
-                            </button>
-                        </div>
-                        <p class="text-[10px] text-[#86868b] leading-relaxed">
-                            System boundary: max 60.0°C. Stuxnet correlation: constrained &lt; 45.0°C if pressure is &gt;= 6.0 bar.
-                        </p>
+                <!-- 1. Radar Chart: Multi-Axis Security Posture -->
+                <div class="scada-panel p-2 flex flex-col">
+                    <div class="scada-header -mx-2 -mt-2 mb-1.5">
+                        <span>SECURITY RISK POSTURE RADAR</span>
+                        <span class="text-[9px] text-zinc-500">5-AXIS</span>
                     </div>
+                    <div class="relative h-36 w-full bg-[#09090b] border border-zinc-800/80 flex items-center justify-center">
+                        <canvas id="chart-radar-posture"></canvas>
+                    </div>
+                </div>
 
-                    <!-- Pressure Input -->
-                    <div class="space-y-2">
-                        <label class="block text-xs text-[#86868b] uppercase tracking-wider font-semibold">Pressure (bar)</label>
-                        <div class="flex gap-3">
-                            <input type="number" id="pressure-input" class="w-full apple-input rounded-xl px-4 py-2.5 text-sm" placeholder="e.g. 5.0" step="0.1">
-                            <button onclick="updateSetpoint('set_pressure')" class="apple-btn text-xs font-medium px-5 py-2.5 rounded-xl">
-                                Dispatch
-                            </button>
-                        </div>
-                        <p class="text-[10px] text-[#86868b] leading-relaxed">
-                            System boundary: max 8.0 bar. Stuxnet correlation: constrained &lt; 6.0 bar if temperature is &gt;= 45.0°C.
-                        </p>
+                <!-- 2. Doughnut Chart: Damage Allocation Breakdown -->
+                <div class="scada-panel p-2 flex flex-col">
+                    <div class="scada-header -mx-2 -mt-2 mb-1.5">
+                        <span>DAMAGE ALLOCATION BREAKDOWN</span>
+                        <span class="text-[9px] text-zinc-500">LIABILITY</span>
+                    </div>
+                    <div class="relative h-28 w-full bg-[#09090b] border border-zinc-800/80 flex items-center justify-center">
+                        <canvas id="chart-cost-breakdown"></canvas>
                     </div>
                 </div>
             </div>
 
-            <!-- Manual Device Isolation Card -->
-            <div class="apple-card rounded-2xl p-6 shadow-lg">
-                <h2 class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
-                    Device Network Isolation
-                </h2>
-                <div class="space-y-4">
-                    <div class="flex justify-between items-center text-xs">
-                        <span class="text-[#86868b]">ESP32_001 Status:</span>
-                        <span id="device-isolation-status" class="font-medium px-2 py-1 rounded text-[#86868b] bg-white/5 border border-white/10">PENDING...</span>
-                    </div>
-                    <p class="text-[10px] text-[#86868b] leading-relaxed">
-                        Isolating the device drops all incoming commands and blocks operator setpoints immediately. Isolation triggers automatically on signature anomalies.
-                    </p>
-                    <button id="isolation-toggle-btn" onclick="toggleIsolation()" class="w-full bg-red-600 hover:bg-red-500 text-white py-2.5 rounded-xl text-xs font-semibold tracking-wide transition duration-150">
-                        Manual Isolate Device
-                    </button>
+            <!-- 3. 2D Risk Density Contour Plot -->
+            <div class="scada-panel p-2 flex flex-col">
+                <div class="scada-header -mx-2 -mt-2 mb-1.5">
+                    <span>2D RISK DENSITY CONTOUR</span>
+                    <span class="text-[9px] text-zinc-500">TIME VS SEVERITY</span>
+                </div>
+                <div class="relative h-28 w-full bg-[#09090b] border border-zinc-800/80 flex items-center justify-center">
+                    <canvas id="canvas-contour" class="w-full h-full"></canvas>
                 </div>
             </div>
 
-            <!-- Active Safeguard Threshold Rules -->
-            <div class="apple-card rounded-2xl p-6 shadow-lg">
-                <h2 class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
-                    Safeguard Boundaries
-                </h2>
-                <div class="space-y-3 text-xs font-light">
-                    <div class="flex justify-between items-center py-1 border-b border-white/5">
-                        <span class="text-[#86868b]">Max Temp (°C):</span>
-                        <input type="number" id="rule-temp-max" class="w-20 apple-input rounded px-2 py-1 text-right font-mono" step="0.1">
+            <!-- Financial Numeric Summary Tiles (Backed by same real incident data) -->
+            <div class="scada-panel p-2.5">
+                <div class="scada-header -mx-2.5 -mt-2.5 mb-2">
+                    <span>CYBER RISK VALUATION</span>
+                    <span id="fin-threat-val" class="font-bold text-emerald-400">0.0%</span>
+                </div>
+                <div class="grid grid-cols-2 gap-1.5 text-xs font-mono">
+                    <div class="bg-[#09090b] border border-zinc-800 p-1.5">
+                        <div class="text-[9px] text-zinc-500 uppercase">Expected Loss</div>
+                        <div id="fin-expected-loss" class="font-bold text-white mt-0.5">$0.00</div>
                     </div>
-                    <div class="flex justify-between items-center py-1 border-b border-white/5">
-                        <span class="text-[#86868b]">Min Temp (°C):</span>
-                        <input type="number" id="rule-temp-min" class="w-20 apple-input rounded px-2 py-1 text-right font-mono" step="0.1">
+                    <div class="bg-[#09090b] border border-zinc-800 p-1.5">
+                        <div class="text-[9px] text-zinc-500 uppercase">Incurred Cost</div>
+                        <div id="fin-incurred-loss" class="font-bold text-white mt-0.5">$0.00</div>
                     </div>
-                    <div class="flex justify-between items-center py-1 border-b border-white/5">
-                        <span class="text-[#86868b]">Max Pressure (bar):</span>
-                        <input type="number" id="rule-pressure-max" class="w-20 apple-input rounded px-2 py-1 text-right font-mono" step="0.1">
+                    <div class="bg-[#09090b] border border-zinc-800 p-1.5">
+                        <div class="text-[9px] text-zinc-500 uppercase">Prevented Loss</div>
+                        <div id="fin-prevented-loss" class="font-bold text-emerald-400 mt-0.5">$0.00</div>
                     </div>
-                    <div class="flex justify-between items-center py-1 border-b border-white/5">
-                        <span class="text-[#86868b]">Min Pressure (bar):</span>
-                        <input type="number" id="rule-pressure-min" class="w-20 apple-input rounded px-2 py-1 text-right font-mono" step="0.1">
-                    </div>
-                    <button onclick="saveRules()" class="w-full mt-2 bg-white text-black hover:bg-[#e8e8ed] py-2 rounded-xl text-xs font-semibold tracking-wide transition duration-150">
-                        Save Safeguard Rules
-                    </button>
-                    <div class="text-[10px] text-[#86868b] leading-relaxed mt-2 pt-2 border-t border-white/5">
-                        * Dynamic enforcer intercepts telemetry command loop in real time to prevent coordinated attacks.
+                    <div class="bg-[#09090b] border border-zinc-800 p-1.5">
+                        <div class="text-[9px] text-zinc-500 uppercase">Net Shield ROI</div>
+                        <div id="fin-net-roi" class="font-bold text-emerald-400 mt-0.5">$0.00</div>
                     </div>
                 </div>
             </div>
         </div>
+    </main>
 
-        <!-- Right Side: Analytics, Statistics and System Logs -->
-        <div class="xl:col-span-2 space-y-8 flex flex-col">
-            
-            <!-- Statistics Derivations Grid -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="apple-card rounded-2xl p-5 flex flex-col justify-between shadow-md">
-                    <span class="text-[10px] text-[#86868b] uppercase tracking-wider font-semibold">Mean Temp (30s)</span>
-                    <span id="stat-temp-mean" class="text-2xl font-medium text-white mt-2 font-mono">--.- °C</span>
-                </div>
-                <div class="apple-card rounded-2xl p-5 flex flex-col justify-between shadow-md">
-                    <span class="text-[10px] text-[#86868b] uppercase tracking-wider font-semibold">Temp Variance (30s)</span>
-                    <span id="stat-temp-var" class="text-2xl font-medium text-white mt-2 font-mono">--.--</span>
-                </div>
-                <div class="apple-card rounded-2xl p-5 flex flex-col justify-between shadow-md">
-                    <span class="text-[10px] text-[#86868b] uppercase tracking-wider font-semibold">Temp Drift (30s)</span>
-                    <span id="stat-temp-drift" class="text-2xl font-medium text-white mt-2 font-mono">--.- °C/m</span>
-                </div>
-                <div class="apple-card rounded-2xl p-5 flex flex-col justify-between shadow-md">
-                    <span class="text-[10px] text-[#86868b] uppercase tracking-wider font-semibold">Pearson Corr (r)</span>
-                    <span id="stat-pearson-r" class="text-2xl font-medium text-white mt-2 font-mono">--.--</span>
-                </div>
+    <!-- 4. BOTTOM PANE: SECURITY AUDIT TRAIL & EVENT STREAM -->
+    <section class="scada-panel p-2">
+        <div class="scada-header -mx-2 -mt-2 mb-1.5">
+            <div class="flex items-center gap-2">
+                <span class="inline-block w-2 h-2 bg-amber-500"></span>
+                <span>SECURITY AUDIT TRAIL & MICRO-SEGMENTATION LOG</span>
             </div>
-
-            <!-- Physical Sensors Realtime Gauges Grid -->
-            <div class="grid grid-cols-3 gap-4">
-                <div class="apple-card rounded-2xl p-5 flex flex-col justify-between shadow-md">
-                    <span class="text-[10px] text-sky-400 uppercase tracking-wider font-semibold">Vibration</span>
-                    <span id="stat-vibration" class="text-2xl font-medium text-white mt-2 font-mono">--.- g</span>
-                </div>
-                <div class="apple-card rounded-2xl p-5 flex flex-col justify-between shadow-md">
-                    <span class="text-[10px] text-emerald-400 uppercase tracking-wider font-semibold">Hall Effect Speed</span>
-                    <span id="stat-hall" class="text-2xl font-medium text-white mt-2 font-mono">---- RPM</span>
-                </div>
-                <div class="apple-card rounded-2xl p-5 flex flex-col justify-between shadow-md">
-                    <span class="text-[10px] text-pink-400 uppercase tracking-wider font-semibold">CT Current</span>
-                    <span id="stat-current" class="text-2xl font-medium text-white mt-2 font-mono">--.- A</span>
-                </div>
-            </div>
-
-            <!-- Chart Panel -->
-            <div class="apple-card rounded-2xl p-6 shadow-lg flex-grow flex flex-col">
-                <h2 id="chart-title-status" class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
-                    Real-time Sensor Telemetry
-                </h2>
-                <div class="relative w-full h-72 md:h-80 flex-grow">
-                    <canvas id="telemetryChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Audit Logs Panel -->
-            <div class="apple-card rounded-2xl p-6 shadow-lg max-h-96 overflow-y-auto">
-                <h2 class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
-                    Security Audit Trail
-                </h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-xs text-left">
-                        <thead>
-                            <tr class="text-[#86868b] border-b border-white/10 uppercase tracking-wider font-semibold text-[10px]">
-                                <th class="py-2 pr-4">Timestamp</th>
-                                <th class="py-2 pr-4">Operator</th>
-                                <th class="py-2 pr-4">Action</th>
-                                <th class="py-2 pr-4">Location (X,Y,Z)</th>
-                                <th class="py-2">System Details</th>
-                            </tr>
-                        </thead>
-                        <tbody id="audit-table-body" class="divide-y divide-white/5">
-                            <!-- Filled dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            <span class="text-[10px] text-zinc-500 font-mono">IMMUTABLE LOG</span>
         </div>
-    </div>
-
-    <!-- BREACH AND RISK PROJECTIONS VIEW -->
-    <div id="view-risk" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow">
-        
-        <!-- Left Side: Risk Index & Expected Loss Projections -->
-        <div class="space-y-8 lg:col-span-1">
-            <!-- Expected Loss Card -->
-            <div class="apple-card rounded-2xl p-6 shadow-lg">
-                <h2 class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
-                    Financial Projections & Damages
-                </h2>
-                <div class="space-y-6">
-                    <div class="text-center py-2">
-                        <p class="text-[10px] text-[#86868b] uppercase tracking-wider font-semibold">Active Projections (Expected Loss)</p>
-                        <p id="risk-expected-loss" class="text-3xl font-bold text-white mt-1 font-mono">$0.00</p>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4 border-t border-white/5 pt-4 text-center">
-                        <div>
-                            <p class="text-[9px] text-[#86868b] uppercase tracking-wider font-semibold">Incurred Loss So Far</p>
-                            <p id="risk-incurred-loss" class="text-lg font-semibold text-red-400 mt-1 font-mono">$0.00</p>
-                        </div>
-                        <div>
-                            <p class="text-[9px] text-[#86868b] uppercase tracking-wider font-semibold">Damages Prevented</p>
-                            <p id="risk-prevented-loss" class="text-lg font-semibold text-emerald-400 mt-1 font-mono">$0.00</p>
-                        </div>
-                    </div>
-                    <p class="text-[10px] text-[#86868b] leading-relaxed text-center font-light pt-2">
-                        Includes triage overhead ($5,000/breach), casing rupture replacement ($250,000), and process downtime savings ($150,000).
-                    </p>
-                </div>
-            </div>
-
-            <!-- Real-time Breach Risk Index -->
-            <div class="apple-card rounded-2xl p-6 shadow-lg">
-                <h2 class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
-                    Threat Index
-                </h2>
-                <div class="space-y-4">
-                    <div>
-                        <div class="flex justify-between text-xs mb-1">
-                            <span class="text-[#86868b]">Breach Probability:</span>
-                            <span id="risk-pct-label" class="text-white font-medium font-mono">0%</span>
-                        </div>
-                        <div class="w-full bg-white/5 h-2 rounded-full overflow-hidden">
-                            <div id="risk-bar" class="bg-white h-full transition-all duration-300" style="width: 0%"></div>
-                        </div>
-                    </div>
-
-                    <div class="border-t border-white/5 pt-4 text-xs font-light space-y-3">
-                        <div class="flex justify-between">
-                            <span class="text-[#86868b]">Thermal Drift Risk:</span>
-                            <span id="risk-drift-level" class="text-white font-mono font-medium">0.0%</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-[#86868b]">Sensor Decorrelation Risk:</span>
-                            <span id="risk-corr-level" class="text-white font-mono font-medium">0.0%</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-[#86868b]">Boundary Proximity Level:</span>
-                            <span id="risk-boundary-level" class="text-white font-mono font-medium">0.0%</span>
-                        </div>
-                    </div>
-            </div>
-
-            <!-- Attack Simulation Center -->
-            <div class="apple-card rounded-2xl p-6 shadow-lg">
-                <h2 class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
-                    Attack Simulation Center
-                </h2>
-                <div class="space-y-4">
-                    <p class="text-[10px] text-[#86868b] leading-relaxed">
-                        Trigger simulated cyberattacks to verify real-time classification, enforcer blocking, auto-isolation, and financial calculations.
-                    </p>
-                    <div class="space-y-2">
-                        <button onclick="triggerAttack('stuxnet')" class="w-full bg-white/5 hover:bg-white/10 text-white py-2 rounded-xl text-xs font-medium border border-white/10 transition duration-150">
-                            Simulate Stuxnet Attack
-                        </button>
-                        <button onclick="triggerAttack('injection')" class="w-full bg-white/5 hover:bg-white/10 text-white py-2 rounded-xl text-xs font-medium border border-white/10 transition duration-150">
-                            Simulate Telemetry Injection
-                        </button>
-                        <button onclick="triggerAttack('privilege')" class="w-full bg-white/5 hover:bg-white/10 text-white py-2 rounded-xl text-xs font-medium border border-white/10 transition duration-150">
-                            Simulate Privilege Escalation
-                        </button>
-                    </div>
-                </div>
-            </div>
+        <div class="overflow-x-auto max-h-36 overflow-y-auto">
+            <table class="w-full text-left font-mono text-[11px]">
+                <thead>
+                    <tr class="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase tracking-wider bg-[#09090b]">
+                        <th class="py-1 px-2">Timestamp (UTC)</th>
+                        <th class="py-1 px-2">Principal</th>
+                        <th class="py-1 px-2">Security Action</th>
+                        <th class="py-1 px-2">Enclave / Location</th>
+                        <th class="py-1 px-2">Incident Audit Details</th>
+                    </tr>
+                </thead>
+                <tbody id="audit-table-body" class="divide-y divide-zinc-800/40 text-zinc-300">
+                    <tr><td colspan="5" class="py-3 text-center text-zinc-500 font-mono">Loading security event ledger...</td></tr>
+                </tbody>
+            </table>
         </div>
+    </section>
 
-        <!-- Right Side: Cyberattack Vectors Details -->
-        <div class="lg:col-span-2 space-y-8">
-            <!-- Attack Vector Breakdown -->
-            <div class="apple-card rounded-2xl p-6 shadow-lg">
-                <h2 class="text-sm font-semibold tracking-tight text-white border-b border-white/5 pb-3 mb-5">
-                    Cybersecurity Breach Attack Vectors
-                </h2>
-
-                <div class="space-y-6 text-xs font-light">
-                    <!-- Vector 1: Stuxnet Coordinated Stress -->
-                    <div class="p-4 bg-white/[0.02] border border-white/5 rounded-xl space-y-2">
-                        <div class="flex justify-between items-center">
-                            <span class="text-white font-medium text-sm">V1: Coordinated Stress Attack (Stuxnet-style)</span>
-                            <span class="text-red-400 font-mono font-semibold">Severity: CRITICAL</span>
-                        </div>
-                        <p class="text-[#86868b] leading-relaxed">
-                            **Mechanism**: Attackers push temperature setpoint high while pressure is already high to rupture the physical system casing, while feeding falsified normal sensor data to operators.
-                        </p>
-                        <p class="text-[#86868b] leading-relaxed">
-                            **Aegis Mitigation**: AI-policy enforcer checks cross-correlation rules in real-time, blocking dispatch of temp setpoint changes if pressure is high (and vice versa) regardless of operator clearance.
-                        </p>
-                    </div>
-
-                    <!-- Vector 2: Telemetry Injection & Spoofing -->
-                    <div class="p-4 bg-white/[0.02] border border-white/5 rounded-xl space-y-2">
-                        <div class="flex justify-between items-center">
-                            <span class="text-white font-medium text-sm">V2: Telemetry Ingest & Replay Attack</span>
-                            <span class="text-amber-400 font-mono font-semibold">Severity: HIGH</span>
-                        </div>
-                        <p class="text-[#86868b] leading-relaxed">
-                            **Mechanism**: Hijacking communication layers to inject fake telemetry packets, triggering unnecessary system shutdowns or masking physical damages.
-                        </p>
-                        <p class="text-[#86868b] leading-relaxed">
-                            **Aegis Mitigation**: Telemetry payloads utilize strict HMAC-SHA256 signature verification matching float canonicalized representations.
-                        </p>
-                    </div>
-
-                    <!-- Vector 3: Privilege Escalation -->
-                    <div class="p-4 bg-white/[0.02] border border-white/5 rounded-xl space-y-2">
-                        <div class="flex justify-between items-center">
-                            <span class="text-white font-medium text-sm">V3: Session Hijacking & Credential Spraying</span>
-                            <span class="text-slate-400 font-mono font-semibold">Severity: MEDIUM</span>
-                        </div>
-                        <p class="text-[#86868b] leading-relaxed">
-                            **Mechanism**: Attacking weak web interfaces using brute-force token requests, session hijacking, or cross-site request forgery (CSRF).
-                        </p>
-                        <p class="text-[#86868b] leading-relaxed">
-                            **Aegis Mitigation**: Multi-layered protection: login sliding-window rate limit (5 attempts/min), HttpOnly session cookies, SameSite=Strict enforcement, and dynamic CSRF token verification for all commands.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Script Block for Charts & Stats -->
+    <!-- JAVASCRIPT SCADA ENGINE: DYNAMIC TOPOLOGY, HEXBIN, STACKED AREA & RADAR -->
     <script>
-        // Global fetch interceptor to automatically add PyWebView token and CSRF token
-        const originalFetch = window.fetch;
-        window.fetch = async function (url, options = {}) {
-            if (!options.headers) {
-                options.headers = {};
-            }
-            if (window.pywebview && window.pywebview.token) {
-                options.headers['X-PYWEBVIEW-TOKEN'] = window.pywebview.token;
-            }
-            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-            if (csrfMeta && !options.headers['X-CSRF-Token']) {
-                options.headers['X-CSRF-Token'] = csrfMeta.getAttribute('content');
-            }
-            return originalFetch(url, options);
+        let slaveCharts = {};
+        let chartRadar = null;
+        let chartCostBreak = null;
+        let isGatewayConnected = false;
+        let activeComPort = null;
+        let lastKnownDevices = [];
+        let lastTelemetryPoints = [];
+
+        // Channel Color Palette for Stacked Area Charts
+        const CHANNEL_COLORS = {
+            'temperature': { border: '#f59e0b', bg: 'rgba(245, 158, 11, 0.25)' },
+            'pressure': { border: '#06b6d4', bg: 'rgba(6, 182, 212, 0.25)' },
+            'current': { border: '#10b981', bg: 'rgba(16, 185, 129, 0.25)' },
+            'vibration': { border: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.25)' },
+            'hall_effect': { border: '#38bdf8', bg: 'rgba(56, 189, 248, 0.25)' },
+            'humidity': { border: '#6366f1', bg: 'rgba(99, 102, 241, 0.25)' }
         };
 
-        let currentDeviceIsolated = false;
-        let activeComPort = null;
-        let initialized = false;
-
-        function initialize() {
-            if (initialized) return;
-            initialized = true;
-            fetchComPortStatus();
-            loadRules();
-            refreshDashboard();
-            setInterval(refreshDashboard, 2000);
+        // Toast Alert System
+        function showAlert(msg, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const toast = document.createElement('div');
+            const colorClass = type === 'error' ? 'bg-red-950/90 border-red-800 text-red-300' :
+                               (type === 'success' ? 'bg-emerald-950/90 border-emerald-800 text-emerald-300' : 'bg-zinc-900/90 border-zinc-700 text-zinc-200');
+            toast.className = `px-3 py-2 border text-[11px] font-mono shadow-lg flex items-center gap-2 ${colorClass} transition-all duration-300 pointer-events-auto`;
+            toast.innerHTML = `<span class="font-bold">[${type.toUpperCase()}]</span> <span>${escapeHTML(msg)}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => container.removeChild(toast), 300);
+            }, 3500);
         }
 
-        // On load, fetch status
-        if (window.pywebview) {
-            initialize();
-        } else {
-            window.addEventListener('pywebviewready', initialize);
-            window.addEventListener('DOMContentLoaded', () => {
-                setTimeout(initialize, 500);
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>'"]/g, tag => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            }[tag] || tag));
+        }
+
+        // Live Clocks
+        function updateClocks() {
+            const now = new Date();
+            const utcEl = document.getElementById('clock-utc');
+            const locEl = document.getElementById('clock-local');
+            if (utcEl) utcEl.innerText = `UTC: ${now.toUTCString().slice(17, 25)}`;
+            if (locEl) locEl.innerText = `LOC: ${now.toTimeString().slice(0, 8)}`;
+        }
+        setInterval(updateClocks, 1000);
+        updateClocks();
+
+        // 1. Initialize Purpose-Built Cyber Risk Charts (Radar & Doughnut)
+        function initCyberRiskCharts() {
+            // Radar Chart (5-Axis Cyber Risk Posture)
+            const radarCtx = document.getElementById('chart-radar-posture');
+            if (radarCtx) {
+                chartRadar = new Chart(radarCtx, {
+                    type: 'radar',
+                    data: {
+                        labels: ['Signature', 'Rules', 'ML Safety', 'Stability', 'Uptime'],
+                        datasets: [{
+                            label: 'Plant Cyber Posture',
+                            data: [100, 100, 100, 100, 100],
+                            backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                            borderColor: '#10b981',
+                            borderWidth: 1.5,
+                            pointBackgroundColor: '#10b981',
+                            pointRadius: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 400,
+                            easing: 'easeOutQuart'
+                        },
+                        scales: {
+                            r: {
+                                angleLines: { color: '#27272a' },
+                                grid: { color: '#27272a' },
+                                pointLabels: { color: '#a1a1aa', font: { size: 9, family: 'JetBrains Mono' } },
+                                ticks: { display: false, min: 0, max: 100 }
+                            }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+
+            // Doughnut Chart (Damage Breakdown / Liability Distribution)
+            const costCtx = document.getElementById('chart-cost-breakdown');
+            if (costCtx) {
+                chartCostBreak = new Chart(costCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Asset Replacement', 'Downtime Liability', 'Regulatory Fines', 'Triage Overhead'],
+                        datasets: [{
+                            data: [55, 25, 12, 8],
+                            backgroundColor: ['#ef4444', '#3b82f6', '#10b981', '#f59e0b'],
+                            borderColor: '#09090b',
+                            borderWidth: 1.5,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 500,
+                            easing: 'easeOutQuart'
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const val = context.parsed || 0;
+                                        return ` ${label}: ${val.toFixed(1)}%`;
+                                    }
+                                }
+                            }
+                        },
+                        cutout: '68%'
+                    }
+                });
+            }
+        }
+
+        // 2. Dynamic Slave Matrix Rows (Left Pane)
+        function renderSlaveMatrix(devices, devStates) {
+            const container = document.getElementById('slave-nodes-container');
+            const countPill = document.getElementById('matrix-node-count');
+            const topPill = document.getElementById('topology-count-pill');
+            if (!container) return;
+
+            if (countPill) countPill.innerText = `${devices.length} NODES`;
+            if (topPill) topPill.innerText = `NODES: ${devices.length}`;
+
+            // Check if DOM structure needs update
+            const currentIds = Array.from(container.children).map(c => c.dataset.devId).filter(Boolean);
+            const needsRebuild = currentIds.join(',') !== devices.join(',');
+
+            if (needsRebuild) {
+                container.innerHTML = '';
+                if (devices.length === 0) {
+                    container.innerHTML = '<div class="text-zinc-500 font-mono text-xs p-3 text-center">[NO SLAVE NODES CONNECTED]</div>';
+                    return;
+                }
+
+                devices.forEach(devId => {
+                    const row = document.createElement('div');
+                    row.dataset.devId = devId;
+                    row.id = `matrix-row-${devId}`;
+                    row.className = "bg-[#09090b] border border-zinc-800 p-2 space-y-1.5";
+                    row.innerHTML = `
+                        <div class="flex items-center justify-between text-xs">
+                            <div class="flex items-center gap-1.5 font-bold text-white">
+                                <span>${escapeHTML(devId)}</span>
+                                <span id="matrix-badge-${devId}" class="status-pill text-zinc-500">OFFLINE</span>
+                            </div>
+                            <span id="matrix-trust-${devId}" class="text-zinc-500 font-mono text-[11px]">100.0% Trust</span>
+                        </div>
+                        <div class="w-full bg-zinc-900 h-1">
+                            <div id="matrix-bar-${devId}" class="h-full bg-emerald-500 transition-all duration-300" style="width: 100%;"></div>
+                        </div>
+                        <div class="grid grid-cols-4 gap-1 pt-0.5">
+                            <button onclick="isolateSlave('${devId}')" class="btn-act-shutdown py-1 text-center font-mono">SHUTDOWN</button>
+                            <button onclick="resetSlave('${devId}')" class="btn-act-reset py-1 text-center font-mono">RESET</button>
+                            <button onclick="clearSlave('${devId}')" class="btn-act-clear py-1 text-center font-mono">CLEAR</button>
+                            <button onclick="pingSlave('${devId}')" class="btn-act-ping py-1 text-center font-mono">PING</button>
+                        </div>
+                    `;
+                    container.appendChild(row);
+                });
+            }
+
+            // Update live metrics on matrix rows
+            devices.forEach(devId => {
+                const st = (devStates && devStates[devId]) || {};
+                const isIso = st.is_isolated || false;
+                const trustVal = st.trust_score !== undefined ? st.trust_score : (isIso ? 0.0 : 100.0);
+
+                const badge = document.getElementById(`matrix-badge-${devId}`);
+                const trustTxt = document.getElementById(`matrix-trust-${devId}`);
+                const bar = document.getElementById(`matrix-bar-${devId}`);
+
+                if (isIso) {
+                    if (badge) { badge.innerText = "ISOLATED"; badge.className = "status-pill text-red-400 border-red-800 bg-red-950/50"; }
+                    if (trustTxt) { trustTxt.innerText = "0.0% Trust"; trustTxt.className = "text-red-400 font-mono text-[11px] font-bold"; }
+                    if (bar) { bar.style.width = "100%"; bar.className = "h-full bg-red-500"; }
+                } else if (isGatewayConnected) {
+                    if (badge) { badge.innerText = "ONLINE"; badge.className = "status-pill text-emerald-400 border-emerald-800 bg-emerald-950/50"; }
+                    if (trustTxt) {
+                        trustTxt.innerText = `${trustVal.toFixed(1)}% Trust`;
+                        trustTxt.className = trustVal < 50 ? "text-red-400 font-mono text-[11px] font-bold" : (trustVal < 80 ? "text-amber-400 font-mono text-[11px] font-bold" : "text-emerald-400 font-mono text-[11px] font-bold");
+                    }
+                    if (bar) {
+                        bar.style.width = `${Math.max(0, Math.min(100, trustVal))}%`;
+                        bar.className = trustVal < 50 ? "h-full bg-red-500" : (trustVal < 80 ? "h-full bg-amber-500" : "h-full bg-emerald-500");
+                    }
+                } else {
+                    if (badge) { badge.innerText = "OFFLINE"; badge.className = "status-pill text-zinc-500 border-zinc-800 bg-zinc-900"; }
+                    if (trustTxt) { trustTxt.innerText = "100.0% Trust"; trustTxt.className = "text-zinc-500 font-mono text-[11px]"; }
+                    if (bar) { bar.style.width = "100%"; bar.className = "h-full bg-zinc-700"; }
+                }
             });
         }
 
-        // Tab Navigation
-        function switchTab(tab) {
-            const btnMonitor = document.getElementById('tab-btn-monitor');
-            const btnRisk = document.getElementById('tab-btn-risk');
-            const viewMonitor = document.getElementById('view-monitor');
-            const viewRisk = document.getElementById('view-risk');
+        // 3. Dynamic Per-Slave Stacked Area Panels (Center Grid)
+        function renderSlaveCards(devices, activeChannelsMap, devSeries, devLatest, devStates) {
+            const grid = document.getElementById('dynamic-slave-cards-grid');
+            if (!grid) return;
 
-            if (!btnMonitor || !btnRisk || !viewMonitor || !viewRisk) return;
+            const currentCardIds = Array.from(grid.children).map(c => c.dataset.devId).filter(Boolean);
+            const needsRebuild = currentCardIds.join(',') !== devices.join(',');
 
-            if (tab === 'monitor') {
-                btnMonitor.className = "px-4 py-2 rounded-lg font-medium text-white bg-white/5 transition duration-150";
-                btnRisk.className = "px-4 py-2 rounded-lg font-medium text-[#86868b] hover:text-white transition duration-150";
-                viewMonitor.classList.remove('hidden');
-                viewRisk.classList.add('hidden');
-                viewMonitor.style.display = 'grid';
-                viewRisk.style.display = 'none';
-            } else {
-                btnMonitor.className = "px-4 py-2 rounded-lg font-medium text-[#86868b] hover:text-white transition duration-150";
-                btnRisk.className = "px-4 py-2 rounded-lg font-medium text-white bg-white/5 transition duration-150";
-                viewMonitor.classList.add('hidden');
-                viewRisk.classList.remove('hidden');
-                viewMonitor.style.display = 'none';
-                viewRisk.style.display = 'grid';
-            }
-        }
+            if (needsRebuild) {
+                // Destroy old Chart.js instances
+                Object.values(slaveCharts).forEach(ch => { try { ch.destroy(); } catch(e) {} });
+                slaveCharts = {};
+                grid.innerHTML = '';
 
-        // HTML Escaping Utility for XSS Prevention
-        function escapeHTML(str) {
-            if (!str) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
-        }
-
-        const ctx = document.getElementById('telemetryChart').getContext('2d');
-        const telemetryChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [
-                    {
-                        label: 'Temperature (°C)',
-                        data: [],
-                        borderColor: '#ffffff',
-                        backgroundColor: 'transparent',
-                        borderWidth: 1.5,
-                        pointRadius: 0,
-                        pointHoverRadius: 4,
-                        tension: 0.1,
-                        yAxisID: 'y'
-                    },
-                    {
-                        label: 'Pressure (bar)',
-                        data: [],
-                        borderColor: '#86868b',
-                        backgroundColor: 'transparent',
-                        borderWidth: 1.5,
-                        pointRadius: 0,
-                        pointHoverRadius: 4,
-                        borderDash: [3, 3],
-                        tension: 0.1,
-                        yAxisID: 'y1'
-                    },
-                    {
-                        label: 'Vibration (g)',
-                        data: [],
-                        borderColor: '#38bdf8',
-                        backgroundColor: 'transparent',
-                        borderWidth: 1.5,
-                        pointRadius: 0,
-                        pointHoverRadius: 4,
-                        tension: 0.1,
-                        yAxisID: 'y'
-                    },
-                    {
-                        label: 'Hall RPM / 100',
-                        data: [],
-                        borderColor: '#34d399',
-                        backgroundColor: 'transparent',
-                        borderWidth: 1.5,
-                        pointRadius: 0,
-                        pointHoverRadius: 4,
-                        tension: 0.1,
-                        yAxisID: 'y1'
-                    },
-                    {
-                        label: 'CT Current (A)',
-                        data: [],
-                        borderColor: '#f472b6',
-                        backgroundColor: 'transparent',
-                        borderWidth: 1.5,
-                        pointRadius: 0,
-                        pointHoverRadius: 4,
-                        tension: 0.1,
-                        yAxisID: 'y'
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                scales: {
-                    x: {
-                        grid: { color: 'rgba(255, 255, 255, 0.03)' },
-                        ticks: { font: { size: 10 }, color: '#86868b' }
-                    },
-                    y: {
-                        position: 'left',
-                        grid: { color: 'rgba(255, 255, 255, 0.03)' },
-                        ticks: { font: { size: 10 }, color: '#ffffff' }
-                    },
-                    y1: {
-                        position: 'right',
-                        grid: { drawOnChartArea: false },
-                        ticks: { font: { size: 10 }, color: '#86868b' }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        labels: { font: { size: 11 }, color: '#f5f5f7' }
-                    }
+                if (devices.length === 0) {
+                    grid.innerHTML = '<div class="col-span-2 scada-panel p-6 text-center text-zinc-500 font-mono text-xs">[AWAITING SLAVE TELEMETRY CONNECTION]</div>';
+                    return;
                 }
-            }
-        });
 
-        // Dispatch Control Commands
-        async function updateSetpoint(type) {
-            const inputId = type === 'set_temp' ? 'temp-input' : 'pressure-input';
-            const valEl = document.getElementById(inputId);
-            const value = parseFloat(valEl.value);
-            if (isNaN(value)) {
-                showAlert('Setpoint must be a valid numeric value.', 'error');
-                return;
-            }
-
-            // Get CSRF Token from meta tag
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
-            try {
-                const response = await fetch('/api/setpoint', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'X-CSRF-Token': csrfToken
-                    },
-                    body: JSON.stringify({ type, value })
-                });
-                const result = await response.json();
-                
-                if (result.success) {
-                    showAlert(result.details, 'success');
-                    valEl.value = '';
-                } else {
-                    showAlert(result.error, 'error');
-                }
-            } catch (err) {
-                showAlert('Failed to contact SCADA backend.', 'error');
-            }
-        }
-
-        function escapeHTML(str) {
-            if (str === null || str === undefined) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-
-        function showAlert(msg, status) {
-            const banner = document.getElementById('alert-banner');
-            banner.classList.remove('hidden', 'bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-200', 'bg-red-500/10', 'border-red-500/30', 'text-red-200');
-            if (status === 'success') {
-                banner.classList.add('bg-emerald-500/10', 'border', 'border-emerald-500/30', 'text-emerald-200');
-            } else {
-                banner.classList.add('bg-red-500/10', 'border', 'border-red-500/30', 'text-red-200');
-            }
-            banner.innerHTML = escapeHTML(msg);
-            setTimeout(() => banner.classList.add('hidden'), 8000);
-        }
-
-        // Live calculation of statistical derivatives & threat indices
-        function calculateStats(telemetry) {
-            if (telemetry.length === 0) return;
-            
-            // Filter telemetry for non-null temperature readings
-            const validTempRecords = telemetry.filter(t => t.temperature !== null && t.temperature !== undefined);
-            if (validTempRecords.length < 2) {
-                document.getElementById('stat-temp-mean').innerHTML = 'N/A';
-                document.getElementById('stat-temp-var').innerHTML = 'N/A';
-                document.getElementById('stat-temp-drift').innerHTML = 'N/A';
-            } else {
-                const temps = validTempRecords.map(t => t.temperature);
-                const times = validTempRecords.map(t => t.timestamp);
-                const n = validTempRecords.length;
-                
-                // 1. Mean
-                const tempMean = temps.reduce((a, b) => a + b, 0) / n;
-                document.getElementById('stat-temp-mean').innerHTML = `${tempMean.toFixed(1)} °C`;
-                
-                // 2. Variance
-                const divisor = n > 1 ? n - 1 : 1;
-                const tempVar = temps.reduce((a, b) => a + Math.pow(b - tempMean, 2), 0) / divisor;
-                document.getElementById('stat-temp-var').innerHTML = tempVar.toFixed(3);
-                
-                // 3. Drift Rate (Temperature Delta per Minute)
-                if (n >= 15) {
-                    const latestTemp = temps[n - 1];
-                    const olderTemp = temps[n - 15]; 
-                    const timeDiffMins = (times[n - 1] - times[n - 15]) / 60;
+                devices.forEach(devId => {
+                    const card = document.createElement('div');
+                    card.dataset.devId = devId;
+                    card.id = `slave-card-${devId}`;
+                    card.className = "scada-panel p-2 flex flex-col";
                     
-                    const tempDrift = (latestTemp - olderTemp) / (timeDiffMins || 1.0);
-                    const driftText = `${tempDrift.toFixed(2)} °C/m`;
-                    document.getElementById('stat-temp-drift').innerHTML = driftText;
+                    const channels = (activeChannelsMap && activeChannelsMap[devId]) || ["temperature", "pressure"];
                     
-                    if (Math.abs(tempDrift) > 3.0) {
-                        document.getElementById('stat-temp-drift').className = "text-2xl font-medium font-mono text-red-400 mt-2";
-                    } else {
-                        document.getElementById('stat-temp-drift').className = "text-2xl font-medium font-mono text-white mt-2";
-                    }
-                } else {
-                    document.getElementById('stat-temp-drift').innerHTML = "N/A";
-                }
-            }
-            
-            // 4. Pearson Correlation Coefficient (requires both temperature and pressure)
-            const validBoth = telemetry.filter(t => t.temperature !== null && t.temperature !== undefined && t.pressure !== null && t.pressure !== undefined);
-            if (validBoth.length < 2) {
-                document.getElementById('stat-pearson-r').innerHTML = 'N/A';
-                return;
-            }
-            
-            const tempsBoth = validBoth.map(t => t.temperature);
-            const pressBoth = validBoth.map(t => t.pressure);
-            const nBoth = validBoth.length;
-            
-            let num = 0;
-            let denT = 0;
-            let denP = 0;
-            const tMeanCalc = tempsBoth.reduce((a, b) => a + b, 0) / nBoth;
-            const pMeanCalc = pressBoth.reduce((a, b) => a + b, 0) / nBoth;
-            for (let i = 0; i < nBoth; i++) {
-                const diffT = tempsBoth[i] - tMeanCalc;
-                const diffP = pressBoth[i] - pMeanCalc;
-                num += diffT * diffP;
-                denT += diffT * diffT;
-                denP += diffP * diffP;
-            }
-            const r = num / (Math.sqrt(denT * denP) || 1.0);
-            document.getElementById('stat-pearson-r').innerHTML = r.toFixed(2);
-            
-            if (nBoth > 20 && Math.abs(r) < 0.2) {
-                document.getElementById('stat-pearson-r').className = "text-2xl font-medium font-mono text-red-500 mt-2 animate-pulse";
-            } else {
-                document.getElementById('stat-pearson-r').className = "text-2xl font-medium font-mono text-white mt-2";
-            }
-        }
+                    // Generate readouts HTML dynamically for active channels
+                    let readoutsHtml = channels.map(ch => {
+                        const label = ch === 'temperature' ? 'TEMP' : (ch === 'pressure' ? 'PRES' : (ch === 'current' ? 'CURR' : (ch === 'hall_effect' ? 'RPM' : (ch === 'vibration' ? 'VIB' : ch.toUpperCase()))));
+                        return `<span>${label}: <b id="val-${ch}-${devId}" class="text-white">--</b></span>`;
+                    }).join(' · ');
 
-        // Update Device Isolation status UI
-        function updateIsolationUI(isIsolated) {
-            currentDeviceIsolated = isIsolated;
-            const statusEl = document.getElementById('device-isolation-status');
-            const btnEl = document.getElementById('isolation-toggle-btn');
-            
-            if (isIsolated) {
-                statusEl.innerHTML = "ISOLATED";
-                statusEl.className = "font-medium px-2 py-1 rounded text-red-400 bg-red-500/10 border border-red-500/30";
-                btnEl.innerHTML = "Rejoin Device to Loop";
-                btnEl.className = "w-full bg-white text-black hover:bg-[#e8e8ed] py-2.5 rounded-xl text-xs font-semibold tracking-wide transition duration-150";
-            } else {
-                statusEl.innerHTML = "CONNECTED";
-                statusEl.className = "font-medium px-2 py-1 rounded text-emerald-400 bg-emerald-500/10 border border-emerald-500/30";
-                btnEl.innerHTML = "Manual Isolate Device";
-                btnEl.className = "w-full bg-red-600 hover:bg-red-500 text-white py-2.5 rounded-xl text-xs font-semibold tracking-wide transition duration-150";
-            }
-        }
+                    card.innerHTML = `
+                        <div class="scada-header -mx-2 -mt-2 mb-1.5">
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-amber-500">●</span>
+                                <span>${escapeHTML(devId)} · STACKED SENSORS</span>
+                            </div>
+                            <span id="badge-${devId}" class="status-pill text-zinc-400">OFFLINE</span>
+                        </div>
+                        <div class="flex items-center justify-between text-[10px] font-mono text-zinc-400 pb-1 border-b border-zinc-800/60 mb-1">
+                            ${readoutsHtml}
+                        </div>
+                        <div class="relative h-28 w-full bg-[#09090b] border border-zinc-800/80">
+                            <canvas id="chart-slave-${devId}"></canvas>
+                        </div>
+                    `;
+                    grid.appendChild(card);
 
-        // Toggle Isolation State via POST request
-        async function toggleIsolation() {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            const endpoint = currentDeviceIsolated ? '/api/device/rejoin' : '/api/device/isolate';
-            try {
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-Token': csrfToken
-                    }
-                });
-                const result = await response.json();
-                if (result.success) {
-                    showAlert(result.details, 'success');
-                    updateIsolationUI(!currentDeviceIsolated);
-                } else {
-                    showAlert(result.error, 'error');
-                }
-            } catch (err) {
-                showAlert('Failed to contact SCADA backend for device isolation.', 'error');
-            }
-        }
-
-        // Trigger simulated cybersecurity attack
-        async function triggerAttack(type) {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            try {
-                const response = await fetch('/api/simulate-attack', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-Token': csrfToken
-                    },
-                    body: JSON.stringify({ type: type, csrf_token: csrfToken })
-                });
-                const result = await response.json();
-                if (result.success) {
-                    showAlert(result.details, 'success');
-                    refreshDashboard();
-                } else {
-                    showAlert(result.error || 'Attack simulation rejected.', 'error');
-                }
-            } catch (err) {
-                showAlert('Failed to trigger attack simulation.', 'error');
-            }
-        }
-
-        // --- Hardware COM Port Management JS ---
-        async function fetchComPortStatus() {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            try {
-                const response = await fetch('/api/com_ports/status', {
-                    headers: { 'X-CSRF-Token': csrfToken }
-                });
-                const result = await response.json();
-                const statusEl = document.getElementById('active-com-port');
-                if (result.success && result.port) {
-                    activeComPort = result.port;
-                    statusEl.innerHTML = activeComPort;
-                    statusEl.className = "font-medium px-2 py-1 rounded text-emerald-400 bg-emerald-500/10 border border-emerald-500/30";
-                } else {
-                    activeComPort = null;
-                    statusEl.innerHTML = "DISCONNECTED";
-                    statusEl.className = "font-medium px-2 py-1 rounded text-amber-400 bg-amber-500/10 border border-amber-500/30";
-                }
-            } catch (err) {
-                console.error("Failed to fetch COM port status", err);
-            }
-        }
-
-        async function scanComPorts() {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            try {
-                const response = await fetch('/api/com_ports', {
-                    headers: { 'X-CSRF-Token': csrfToken }
-                });
-                const result = await response.json();
-                const selectEl = document.getElementById('com-port-select');
-                selectEl.innerHTML = '<option value="MOCK">MOCK (Software Emulation)</option>';
-                if (result.success && Array.isArray(result.ports)) {
-                    if (result.ports.length === 0) {
-                        showAlert('No active COM ports detected. Selected MOCK mode.', 'error');
-                    } else {
-                        result.ports.forEach(port => {
-                            const opt = document.createElement('option');
-                            opt.value = port;
-                            opt.textContent = port;
-                            selectEl.appendChild(opt);
+                    // Create Stacked Area Chart.js for this slave
+                    const ctx = document.getElementById(`chart-slave-${devId}`);
+                    if (ctx) {
+                        const datasets = channels.map(ch => {
+                            const pal = CHANNEL_COLORS[ch] || { border: '#f59e0b', bg: 'rgba(245, 158, 11, 0.2)' };
+                            return {
+                                label: ch.toUpperCase(),
+                                data: [],
+                                borderColor: pal.border,
+                                backgroundColor: pal.bg,
+                                fill: true,
+                                tension: 0.1,
+                                pointRadius: 0,
+                                borderWidth: 1.5,
+                                channelKey: ch
+                            };
                         });
-                        showAlert(`Found ${result.ports.length} port(s).`, 'success');
-                    }
-                } else {
-                    showAlert(result.error || 'Failed to list COM ports.', 'error');
-                }
-            } catch (err) {
-                showAlert('Failed to scan COM ports.', 'error');
-            }
-        }
 
-        async function connectComPort() {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            const port = document.getElementById('com-port-select').value;
-            const baudEl = document.getElementById('baud-rate-select');
-            const baud = baudEl ? parseInt(baudEl.value) : 115200;
-            if (!port) {
-                showAlert('Please select or type a COM port first.', 'error');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/com_ports/connect', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-Token': csrfToken
-                    },
-                    body: JSON.stringify({ port, baud, csrf_token: csrfToken })
-                });
-                const result = await response.json();
-                if (result.success) {
-                    showAlert(result.details, 'success');
-                    setTimeout(fetchComPortStatus, 1000);
-                } else {
-                    showAlert(result.error, 'error');
-                }
-            } catch (err) {
-                showAlert('Failed to connect to COM port.', 'error');
-            }
-        }
-
-        async function disconnectComPort() {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            try {
-                const response = await fetch('/api/com_ports/disconnect', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-Token': csrfToken
-                    },
-                    body: JSON.stringify({ csrf_token: csrfToken })
-                });
-                const result = await response.json();
-                if (result.success) {
-                    showAlert(result.details, 'success');
-                    setTimeout(fetchComPortStatus, 500);
-                } else {
-                    showAlert(result.error, 'error');
-                }
-            } catch (err) {
-                showAlert('Failed to disconnect COM port.', 'error');
-            }
-        }
-
-        // Trigger PDF Report download (opens native Save File Dialog pop-up window)
-        async function downloadReport() {
-            try {
-                showAlert('Generating incident PDF report...', 'info');
-                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                
-                // First try Web File System Access API if supported in browser environment
-                if (window.showSaveFilePicker) {
-                    try {
-                        const response = await fetch('/api/report/download', {
-                            headers: { 'X-CSRF-Token': csrfToken }
+                        slaveCharts[devId] = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: Array(30).fill(''),
+                                datasets: datasets
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                animation: false,
+                                scales: {
+                                    x: { display: false },
+                                    y: {
+                                        stacked: true,
+                                        grid: { color: '#1f1f23', drawBorder: false },
+                                        ticks: { color: '#71717a', font: { size: 9, family: 'JetBrains Mono' } }
+                                    }
+                                },
+                                plugins: {
+                                    legend: {
+                                        display: true,
+                                        position: 'top',
+                                        labels: { color: '#a1a1aa', boxWidth: 8, font: { size: 8, family: 'JetBrains Mono' } }
+                                    }
+                                }
+                            }
                         });
-                        if (!response.ok) {
-                            const errJson = await response.json().catch(() => ({}));
-                            showAlert(errJson.error || 'Failed to generate report.', 'error');
-                            return;
+                    }
+                });
+            }
+
+            // Update live data inside slave cards
+            devices.forEach(devId => {
+                const lRec = devLatest && devLatest[devId];
+                const sData = (devSeries && devSeries[devId]) || [];
+                const st = (devStates && devStates[devId]) || {};
+                const isIso = st.is_isolated || false;
+                const chart = slaveCharts[devId];
+
+                const badge = document.getElementById(`badge-${devId}`);
+                if (badge) {
+                    badge.innerText = isIso ? "ISOLATED" : (isGatewayConnected ? "MONITORED" : "OFFLINE");
+                    badge.className = isIso ? "status-pill text-red-400 border-red-800 bg-red-950/50" : (isGatewayConnected ? "status-pill text-emerald-400 border-emerald-800 bg-emerald-950/50" : "status-pill text-zinc-500 border-zinc-800 bg-zinc-900");
+                }
+
+                if (lRec && isGatewayConnected) {
+                    Object.keys(lRec).forEach(k => {
+                        const el = document.getElementById(`val-${k}-${devId}`);
+                        if (el && lRec[k] !== null && lRec[k] !== undefined) {
+                            const val = lRec[k];
+                            el.innerText = (k === 'hall_effect') ? `${Math.round(val)}` : (typeof val === 'number' ? val.toFixed(1) : val);
                         }
-                        const blob = await response.blob();
-                        const handle = await window.showSaveFilePicker({
-                            suggestedName: `aegis_scada_report_${Date.now()}.pdf`,
-                            types: [{
-                                description: 'PDF Document',
-                                accept: { 'application/pdf': ['.pdf'] }
-                            }]
-                        });
-                        const writable = await handle.createWritable();
-                        await writable.write(blob);
-                        await writable.close();
-                        showAlert('Incident report PDF saved successfully.', 'success');
-                        return;
-                    } catch (err) {
-                        if (err.name === 'AbortError') {
-                            showAlert('Report save cancelled.', 'info');
-                            return;
-                        }
-                        console.warn("showSaveFilePicker failed or not allowed, trying server save dialog:", err);
-                    }
+                    });
                 }
 
-                // Fallback / PyWebView Desktop mode: Server-side native Tkinter file save dialog
-                const response = await fetch('/api/report/save_dialog', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-Token': csrfToken,
-                        'Content-Type': 'application/json'
-                    }
-                });
-                const result = await response.json();
-                if (result.success) {
-                    showAlert(result.message || 'Incident report PDF saved successfully.', 'success');
-                } else if (result.cancelled) {
-                    showAlert('Report save cancelled.', 'info');
-                } else {
-                    showAlert(result.error || 'Failed to save report.', 'error');
+                // Update Stacked Area Chart
+                if (chart && isGatewayConnected && !isIso && sData.length > 0) {
+                    const recentPoints = sData.slice(-30);
+                    chart.data.labels = recentPoints.map((_, i) => i);
+                    chart.data.datasets.forEach(ds => {
+                        const chKey = ds.channelKey;
+                        ds.data = recentPoints.map(p => (p[chKey] !== null && p[chKey] !== undefined ? p[chKey] : 0));
+                    });
+                    chart.update('none');
                 }
-            } catch (err) {
-                console.error("Report download error:", err);
-                showAlert('Error triggering report download.', 'error');
-            }
+            });
         }
 
-        async function loadRules() {
-            try {
-                const response = await fetch('/api/rules');
-                const result = await response.json();
-                if (result.success && result.rules) {
-                    document.getElementById('rule-temp-max').value = result.rules.temp_max;
-                    document.getElementById('rule-temp-min').value = result.rules.temp_min;
-                    document.getElementById('rule-pressure-max').value = result.rules.pressure_max;
-                    document.getElementById('rule-pressure-min').value = result.rules.pressure_min;
+        // 4. Hexagonal Binning Correlation Plot Renderer (HTML5 Canvas 2D)
+        function redrawHexbin() {
+            const canvas = document.getElementById('canvas-hexbin');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const xKey = document.getElementById('hex-axis-x')?.value || 'temperature';
+            const yKey = document.getElementById('hex-axis-y')?.value || 'pressure';
+
+            // Extract real multi-node coordinate points
+            const points = [];
+            lastTelemetryPoints.forEach(t => {
+                const xVal = t[xKey];
+                const yVal = t[yKey];
+                if (xVal !== null && xVal !== undefined && yVal !== null && yVal !== undefined) {
+                    points.push({ x: Number(xVal), y: Number(yVal) });
                 }
-            } catch (err) {
-                console.error("Failed to load rules", err);
-            }
-        }
+            });
 
-        async function saveRules() {
-            const temp_max = parseFloat(document.getElementById('rule-temp-max').value);
-            const temp_min = parseFloat(document.getElementById('rule-temp-min').value);
-            const pressure_max = parseFloat(document.getElementById('rule-pressure-max').value);
-            const pressure_min = parseFloat(document.getElementById('rule-pressure-min').value);
-
-            if (isNaN(temp_max) || isNaN(temp_min) || isNaN(pressure_max) || isNaN(pressure_min)) {
-                showAlert("All threshold boundaries must be valid numeric values.", "error");
+            // If empty, draw subtle grid
+            if (points.length === 0) {
+                ctx.fillStyle = '#71717a';
+                ctx.font = '10px JetBrains Mono';
+                ctx.textAlign = 'center';
+                ctx.fillText('[AWAITING MULTI-NODE TELEMETRY FOR AGGREGATOR GRAPH]', canvas.width / 2, canvas.height / 2);
                 return;
             }
 
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            try {
-                const response = await fetch('/api/rules/update', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-Token': csrfToken
-                    },
-                    body: JSON.stringify({ temp_max, temp_min, pressure_max, pressure_min })
-                });
-                const result = await response.json();
-                if (result.success) {
-                    showAlert(result.details, 'success');
-                } else {
-                    showAlert(result.error, 'error');
-                }
-            } catch (err) {
-                showAlert("Failed to save rules to SCADA backend.", "error");
-            }
+            // Compute domain
+            const xs = points.map(p => p.x);
+            const ys = points.map(p => p.y);
+            const minX = Math.min(...xs);
+            const maxX = Math.max(...xs) + 0.1;
+            const minY = Math.min(...ys);
+            const maxY = Math.max(...ys) + 0.1;
+
+            const pad = 24;
+            const w = canvas.width - pad * 2;
+            const h = canvas.height - pad * 2;
+
+            // Hex radius
+            const hexRadius = 14;
+            const hexWidth = Math.sqrt(3) * hexRadius;
+            const hexHeight = 2 * hexRadius * 0.75;
+
+            const bins = {};
+            let maxCount = 1;
+
+            points.forEach(p => {
+                const px = pad + ((p.x - minX) / (maxX - minX)) * w;
+                const py = canvas.height - pad - ((p.y - minY) / (maxY - minY)) * h;
+
+                // Snap to hex grid
+                const col = Math.round(px / hexWidth);
+                const row = Math.round(py / hexHeight);
+                const key = `${col},${row}`;
+                bins[key] = (bins[key] || 0) + 1;
+                if (bins[key] > maxCount) maxCount = bins[key];
+            });
+
+            // Draw Hexagons
+            Object.keys(bins).forEach(k => {
+                const [col, row] = k.split(',').map(Number);
+                const cx = col * hexWidth + (row % 2 === 1 ? hexWidth / 2 : 0);
+                const cy = row * hexHeight;
+                const count = bins[k];
+                const density = count / maxCount;
+
+                // Terminal color interpolation: #09090b -> #06b6d4 -> #f59e0b -> #ef4444
+                let fillCol = '#06b6d4';
+                if (density > 0.6) fillCol = '#ef4444';
+                else if (density > 0.3) fillCol = '#f59e0b';
+
+                ctx.fillStyle = fillCol;
+                ctx.strokeStyle = '#27272a';
+                ctx.lineWidth = 1;
+
+                drawHexagon(ctx, cx, cy, hexRadius * 0.85);
+                ctx.fill();
+                ctx.stroke();
+            });
+
+            // Axes Labels
+            ctx.fillStyle = '#71717a';
+            ctx.font = '9px JetBrains Mono';
+            ctx.textAlign = 'left';
+            ctx.fillText(`${xKey.toUpperCase()} [${minX.toFixed(1)} → ${maxX.toFixed(1)}]`, pad, canvas.height - 6);
+            ctx.save();
+            ctx.translate(12, canvas.height / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.textAlign = 'center';
+            ctx.fillText(`${yKey.toUpperCase()}`, 0, 0);
+            ctx.restore();
         }
 
+        function drawHexagon(ctx, x, y, r) {
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI / 3) * i + (Math.PI / 6);
+                const hx = x + r * Math.cos(angle);
+                const hy = y + r * Math.sin(angle);
+                if (i === 0) ctx.moveTo(hx, hy);
+                else ctx.lineTo(hx, hy);
+            }
+            ctx.closePath();
+        }
+
+        // 5. 2D Risk Density Contour Plot (HTML5 Canvas 2D)
+        function redrawContour(contourGrid) {
+            const canvas = document.getElementById('canvas-contour');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const matrix = (contourGrid && contourGrid.density_matrix) || [];
+            if (matrix.length === 0) {
+                ctx.fillStyle = '#71717a';
+                ctx.font = '10px JetBrains Mono';
+                ctx.textAlign = 'center';
+                ctx.fillText('[NORMAL STATE - NO ACTIVE RISK DENSITY CONCENTRATION]', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            const timeLabels = ["T0", "+10m", "+20m", "+30m", "+45m", "+60m"];
+            const sevLabels = ["LOW", "DRIFT", "BOUND", "ISOL"];
+
+            const cols = matrix.length;
+            const rows = 4;
+            const cellW = (canvas.width - 40) / cols;
+            const cellH = (canvas.height - 20) / rows;
+
+            for (let c = 0; c < cols; c++) {
+                for (let r = 0; r < rows; r++) {
+                    const val = matrix[c][r] || 0;
+                    const x = 30 + c * cellW;
+                    const y = r * cellH;
+
+                    // Density color mapping
+                    const alpha = Math.min(1.0, val / 50.0);
+                    let color = `rgba(16, 185, 129, ${Math.max(0.15, alpha)})`;
+                    if (r === 1) color = `rgba(245, 158, 11, ${Math.max(0.15, alpha)})`;
+                    if (r === 2) color = `rgba(239, 68, 68, ${Math.max(0.15, alpha)})`;
+                    if (r === 3) color = `rgba(185, 28, 28, ${Math.max(0.2, alpha)})`;
+
+                    ctx.fillStyle = color;
+                    ctx.fillRect(x + 1, y + 1, cellW - 2, cellH - 2);
+                }
+            }
+
+            // Row Labels
+            ctx.fillStyle = '#71717a';
+            ctx.font = '8px JetBrains Mono';
+            ctx.textAlign = 'right';
+            sevLabels.forEach((lbl, r) => {
+                ctx.fillText(lbl, 26, r * cellH + cellH / 2 + 3);
+            });
+
+            // Column Labels
+            ctx.textAlign = 'center';
+            timeLabels.forEach((lbl, c) => {
+                ctx.fillText(lbl, 30 + c * cellW + cellW / 2, canvas.height - 4);
+            });
+        }
+
+        // 6. Data Refresh Engine
         async function refreshDashboard() {
             try {
-                // 1. Fetch telemetry & audit logs
-                const response = await fetch('/api/data');
-                if (!response.ok) return;
-                const data = await response.json();
-                if (!data || !Array.isArray(data.telemetry)) return;
-                
-                const latest = data.telemetry.length > 0 ? data.telemetry[data.telemetry.length - 1] : null;
-                const nowSecs = Date.now() / 1000;
-                
-                // Determine connection & activity status
-                const isComDisconnected = !activeComPort || activeComPort === "DISCONNECTED" || (activeComPort === "MOCK_PORT" && data.telemetry.length === 0);
-                const isDataInactive = !latest || (nowSecs - latest.timestamp > 5.0);
-                
-                const chartTitle = document.getElementById('chart-title-status');
-                if (isComDisconnected) {
-                    chartTitle.innerHTML = "Real-time Sensor Telemetry — STOPPED (COM PORT DISCONNECTED)";
-                    chartTitle.className = "text-sm font-semibold tracking-tight text-red-400 border-b border-white/5 pb-3 mb-5";
-                } else if (isDataInactive) {
-                    chartTitle.innerHTML = "Real-time Sensor Telemetry — STOPPED (NO NEW DATA)";
-                    chartTitle.className = "text-sm font-semibold tracking-tight text-amber-400 border-b border-white/5 pb-3 mb-5";
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                const res = await fetch('/api/data', {
+                    headers: { 'X-CSRF-Token': csrfToken }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+
+                isGatewayConnected = data.gateway_connected;
+                activeComPort = data.active_port;
+
+                // Update Header Connect Button & Badge
+                const connBtn = document.getElementById('btn-com-connect');
+                if (connBtn) {
+                    if (isGatewayConnected) {
+                        connBtn.innerText = "DISCONNECT";
+                        connBtn.className = "px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white font-bold text-[11px] tracking-wider uppercase cursor-pointer";
+                    } else {
+                        connBtn.innerText = "CONNECT";
+                        connBtn.className = "px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-black font-bold text-[11px] tracking-wider uppercase cursor-pointer";
+                    }
+                }
+
+
+                const modelPill = document.getElementById('model-status-pill');
+                if (modelPill && data.model_status) {
+                    if (data.model_status === "ONLINE") {
+                        modelPill.innerText = "ML: ACTIVE (5D)";
+                        modelPill.className = "status-pill text-emerald-400 border-emerald-900 bg-emerald-950/40";
+                    } else {
+                        modelPill.innerText = "RULES: FALLBACK";
+                        modelPill.className = "status-pill text-amber-400 border-amber-900 bg-amber-950/40";
+                    }
+                }
+
+                const devices = data.devices || [];
+                const devStates = data.device_states || {};
+                const devSeries = data.device_series || {};
+                const devLatest = data.device_latest || {};
+                const activeChannels = data.active_channels || {};
+                const telemetry = data.telemetry || [];
+
+                lastKnownDevices = devices;
+                lastTelemetryPoints = telemetry;
+
+                // 1. Dynamic Left Slave Matrix
+                renderSlaveMatrix(devices, devStates);
+
+                // 2. Dynamic Center Stacked Area Slave Panels
+                renderSlaveCards(devices, activeChannels, devSeries, devLatest, devStates);
+
+                // 3. Hexbin Correlation Plot
+                redrawHexbin();
+
+                // 4. Update Top SCADA KPI Strip
+                if (isGatewayConnected && telemetry.length > 0) {
+                    calculateKpis(telemetry, devLatest);
                 } else {
-                    chartTitle.innerHTML = "Real-time Sensor Telemetry — RUNNING";
-                    chartTitle.className = "text-sm font-semibold tracking-tight text-emerald-400 border-b border-white/5 pb-3 mb-5";
+                    document.getElementById('stat-temp-mean').innerText = '--.- °C';
+                    document.getElementById('stat-temp-var').innerText = '--.-';
+                    document.getElementById('stat-temp-drift').innerText = '--.- °C/m';
+                    document.getElementById('stat-pearson-r').innerText = 'N/A';
+                    document.getElementById('kpi-vib').innerText = '--.- g';
+                    document.getElementById('kpi-hall').innerText = '--.- RPM';
+                    document.getElementById('kpi-curr').innerText = '--.- A';
                 }
 
-                // Update graph datasets if telemetry exists
-                if (data.telemetry.length > 0) {
-                    // Update label arrays and datasets dynamically based on transmitted fields
-                    const hasTemp = data.telemetry.some(t => t.temperature !== null && t.temperature !== undefined);
-                    const hasPress = data.telemetry.some(t => t.pressure !== null && t.pressure !== undefined);
-                    const hasVib = data.telemetry.some(t => t.vibration !== null && t.vibration !== undefined);
-                    const hasHall = data.telemetry.some(t => t.hall_effect !== null && t.hall_effect !== undefined);
-                    const hasCurrent = data.telemetry.some(t => t.current !== null && t.current !== undefined);
-
-                    telemetryChart.data.labels = data.telemetry.map((_, i) => i + 1);
-                    telemetryChart.data.datasets[0].data = data.telemetry.map(t => t.temperature);
-                    telemetryChart.data.datasets[0].hidden = !hasTemp;
-
-                    telemetryChart.data.datasets[1].data = data.telemetry.map(t => t.pressure);
-                    telemetryChart.data.datasets[1].hidden = !hasPress;
-
-                    telemetryChart.data.datasets[2].data = data.telemetry.map(t => t.vibration);
-                    telemetryChart.data.datasets[2].hidden = !hasVib;
-
-                    telemetryChart.data.datasets[3].data = data.telemetry.map(t => t.hall_effect !== null && t.hall_effect !== undefined ? t.hall_effect / 100 : null);
-                    telemetryChart.data.datasets[3].hidden = !hasHall;
-
-                    telemetryChart.data.datasets[4].data = data.telemetry.map(t => t.current);
-                    telemetryChart.data.datasets[4].hidden = !hasCurrent;
-
-                    telemetryChart.update();
-                }
-                
-                // Update latest physical sensor gauges with N/A if missing
-                if (latest) {
-                    document.getElementById('stat-vibration').innerHTML = latest.vibration !== null && latest.vibration !== undefined ? `${latest.vibration.toFixed(2)} g` : 'N/A';
-                    document.getElementById('stat-hall').innerHTML = latest.hall_effect !== null && latest.hall_effect !== undefined ? `${latest.hall_effect.toFixed(0)} RPM` : 'N/A';
-                    document.getElementById('stat-current').innerHTML = latest.current !== null && latest.current !== undefined ? `${latest.current.toFixed(2)} A` : 'N/A';
-                } else {
-                    document.getElementById('stat-vibration').innerHTML = 'N/A';
-                    document.getElementById('stat-hall').innerHTML = 'N/A';
-                    document.getElementById('stat-current').innerHTML = 'N/A';
-                }
-                
-                // Calculate statistical metrics (filter out non-null parameters)
-                calculateStats(data.telemetry);
-                
-                // Update financials from backend (ensuring consistency with PDF)
+                // 5. Update Financial & Cyber Risk Analytics
                 if (data.financials) {
                     const f = data.financials;
-                    document.getElementById('risk-pct-label').innerHTML = `${f.threat_index}%`;
-                    document.getElementById('risk-bar').style.width = `${f.threat_index}%`;
-                    
-                    if (f.threat_index >= 60.0) {
-                        document.getElementById('risk-bar').className = "bg-red-500 h-full transition-all duration-300";
-                    } else if (f.threat_index >= 30.0) {
-                        document.getElementById('risk-bar').className = "bg-amber-400 h-full transition-all duration-300";
-                    } else {
-                        document.getElementById('risk-bar').className = "bg-white h-full transition-all duration-300";
+                    document.getElementById('risk-pct-label').innerText = `${f.threat_index.toFixed(1)}%`;
+                    document.getElementById('fin-threat-val').innerText = `${f.threat_index.toFixed(1)}%`;
+
+                    const statusTag = document.getElementById('threat-status-tag');
+                    if (statusTag) {
+                        if (f.threat_index === 0.0) {
+                            statusTag.innerText = "ALL NODES SECURE";
+                            statusTag.className = "text-[9px] text-emerald-400 font-bold";
+                        } else {
+                            statusTag.innerText = `ELEVATED THREAT DETECTED (${f.violation_count} INCIDENTS)`;
+                            statusTag.className = "text-[9px] text-red-400 font-bold";
+                        }
                     }
 
-                    document.getElementById('risk-drift-level').innerHTML = `${f.drift_risk}%`;
-                    document.getElementById('risk-corr-level').innerHTML = `${f.corr_risk}%`;
-                    document.getElementById('risk-boundary-level').innerHTML = `${f.boundary_risk}%`;
-                    document.getElementById('risk-expected-loss').innerHTML = `$${f.expected_loss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                    
-                    // Update total incurred and prevented losses
-                    document.getElementById('risk-incurred-loss').innerHTML = `$${f.incurred_cost.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-                    document.getElementById('risk-prevented-loss').innerHTML = `$${f.prevented_cost.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                    document.getElementById('fin-expected-loss').innerText = `$${f.expected_loss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    document.getElementById('fin-incurred-loss').innerText = `$${f.incurred_cost.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                    document.getElementById('fin-prevented-loss').innerText = `$${f.prevented_cost.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                    document.getElementById('fin-net-roi').innerText = `$${f.net_defense_value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+
+                    // Update Radar Chart (smooth update only when values change)
+                    if (chartRadar && f.radar_posture && f.radar_posture.values) {
+                        const cur = chartRadar.data.datasets[0].data;
+                        const nxt = f.radar_posture.values;
+                        let rDiff = false;
+                        for (let i = 0; i < nxt.length; i++) {
+                            if (Math.abs((cur[i] || 0) - nxt[i]) > 0.1) {
+                                rDiff = true;
+                                break;
+                            }
+                        }
+                        if (rDiff) {
+                            chartRadar.data.datasets[0].data = nxt;
+                            chartRadar.update();
+                        }
+                    }
+
+                    // Update Damage Doughnut (Smooth slice percentage transitions, never collapses)
+                    if (chartCostBreak && f.cost_distribution) {
+                        const cd = f.cost_distribution;
+                        const sumVal = (cd.asset_replacement || 0) + (cd.downtime_liability || 0) + (cd.regulatory_fines || 0) + (cd.triage_overhead || 0);
+                        let targetData;
+                        if (sumVal > 0) {
+                            targetData = [
+                                (cd.asset_replacement / sumVal) * 100,
+                                (cd.downtime_liability / sumVal) * 100,
+                                (cd.regulatory_fines / sumVal) * 100,
+                                (cd.triage_overhead / sumVal) * 100
+                            ];
+                        } else {
+                            targetData = [55, 25, 12, 8];
+                        }
+
+                        const curData = chartCostBreak.data.datasets[0].data;
+                        let dDiff = false;
+                        for (let i = 0; i < targetData.length; i++) {
+                            if (Math.abs((curData[i] || 0) - targetData[i]) > 0.05) {
+                                dDiff = true;
+                                break;
+                            }
+                        }
+                        if (dDiff) {
+                            chartCostBreak.data.datasets[0].data = targetData;
+                            chartCostBreak.update();
+                        }
+                    }
+
+                    // Update 2D Contour Plot
+                    if (f.contour_grid) {
+                        redrawContour(f.contour_grid);
+                    }
                 }
-                
-                // Rebuild Audit logs safely
-                const tableBody = document.getElementById('audit-table-body');
-                tableBody.innerHTML = '';
-                data.audit_logs.forEach(a => {
-                    const row = document.createElement('tr');
-                    row.className = "hover:bg-white/[0.02] transition duration-150";
-                    
-                    let actionClass = "text-[#86868b]";
-                    if (a.action.includes("VIOLATION") || a.action.includes("ISOLATION")) {
-                        actionClass = "text-red-400 font-medium";
-                    } else if (a.action === "LOGIN" || a.action.includes("REJOIN")) {
-                        actionClass = "text-emerald-400 font-medium";
-                    }
-                    
-                    const timeStr = new Date(a.timestamp).toLocaleTimeString();
-                    row.innerHTML = `
-                        <td class="py-3 pr-4 text-[#86868b]">${escapeHTML(timeStr)}</td>
-                        <td class="py-3 pr-4 text-white font-medium">${escapeHTML(a.username)}</td>
-                        <td class="py-3 pr-4 ${actionClass}">${escapeHTML(a.action)}</td>
-                        <td class="py-3 pr-4 text-[#86868b] font-mono text-[11px]">${escapeHTML(a.location)}</td>
-                        <td class="py-3 text-[#86868b] font-light max-w-xs truncate" title="${escapeHTML(a.details)}">${escapeHTML(a.details)}</td>
-                    `;
-                    tableBody.appendChild(row);
-                });
 
-                // 2. Fetch current Device isolation status
-                const statusResponse = await fetch('/api/device/status');
-                const statusData = await statusResponse.json();
-                updateIsolationUI(statusData.is_isolated);
+                // 6. Security Audit Log Table
+                const tableBody = document.getElementById('audit-table-body');
+                if (tableBody && data.audit_logs) {
+                    tableBody.innerHTML = '';
+                    data.audit_logs.slice(0, 15).forEach(a => {
+                        const row = document.createElement('tr');
+                        row.className = "hover:bg-[#18181b]";
+                        let badge = `<span class="status-pill text-zinc-400">${escapeHTML(a.action)}</span>`;
+                        if (a.action.includes("ISOLATION") || a.action.includes("ATTACK") || a.action.includes("VIOLATION")) {
+                            badge = `<span class="status-pill text-red-400 border-red-800 bg-red-950/40">${escapeHTML(a.action)}</span>`;
+                        } else if (a.action.includes("REJOIN") || a.action.includes("RESET") || a.action.includes("CLEAR")) {
+                            badge = `<span class="status-pill text-emerald-400 border-emerald-800 bg-emerald-950/40">${escapeHTML(a.action)}</span>`;
+                        }
+                        const timeStr = a.timestamp ? new Date(a.timestamp).toISOString().slice(11, 19) : '--:--:--';
+                        row.innerHTML = `
+                            <td class="py-1 px-2 text-zinc-500 font-mono">${escapeHTML(timeStr)}</td>
+                            <td class="py-1 px-2 text-white font-bold">${escapeHTML(a.username)}</td>
+                            <td class="py-1 px-2">${badge}</td>
+                            <td class="py-1 px-2 text-zinc-400 font-mono text-[10px]">${escapeHTML(a.location)}</td>
+                            <td class="py-1 px-2 text-zinc-300 truncate max-w-xs font-mono" title="${escapeHTML(a.details)}">${escapeHTML(a.details)}</td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                }
 
             } catch (err) {
-                console.error("Dashboard refresh error: ", err);
+                console.error("SCADA polling error:", err);
             }
         }
 
@@ -1190,11 +1128,283 @@
             const text = document.getElementById('update-banner-text');
             const link = document.getElementById('update-banner-link');
             if (banner && text && link) {
-                text.textContent = `Aegis ICS v${version} is available. You are running v2.3.0.`;
+                text.textContent = `Aegis ICS v${version} is available. You are running v2.4.0.`;
                 link.href = downloadUrl;
                 banner.classList.remove('hidden');
             }
         }
+
+        // Statistical KPI Calculation
+        function calculateKpis(telemetry, devLatest) {
+            const validTemps = telemetry.map(t => t.temperature).filter(v => v !== null && v !== undefined);
+            if (validTemps.length >= 2) {
+                const mean = validTemps.reduce((a, b) => a + b, 0) / validTemps.length;
+                const variance = validTemps.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / validTemps.length;
+                document.getElementById('stat-temp-mean').innerText = `${mean.toFixed(1)} °C`;
+                document.getElementById('stat-temp-var').innerText = variance.toFixed(2);
+
+                const recent = validTemps.slice(0, 15);
+                const drift = Math.abs(recent[0] - recent[recent.length - 1]) / 0.5;
+                document.getElementById('stat-temp-drift').innerText = `${drift.toFixed(2)} °C/m`;
+            }
+
+            const validPairs = telemetry.filter(t => t.temperature !== null && t.pressure !== null);
+            if (validPairs.length >= 5) {
+                const n = validPairs.length;
+                const xs = validPairs.map(t => t.temperature);
+                const ys = validPairs.map(t => t.pressure);
+                const xMean = xs.reduce((a, b) => a + b, 0) / n;
+                const yMean = ys.reduce((a, b) => a + b, 0) / n;
+                const num = xs.reduce((acc, x, i) => acc + (x - xMean) * (ys[i] - yMean), 0);
+                const denX = xs.reduce((acc, x) => acc + Math.pow(x - xMean, 2), 0);
+                const denY = ys.reduce((acc, y) => acc + Math.pow(y - yMean, 2), 0);
+                const r = (denX * denY > 0) ? num / Math.sqrt(denX * denY) : 0.0;
+                document.getElementById('stat-pearson-r').innerText = r.toFixed(2);
+            }
+
+            const latestAll = Object.values(devLatest);
+            if (latestAll.length > 0) {
+                const maxVib = Math.max(...latestAll.map(l => l.vibration || 0));
+                const maxRpm = Math.max(...latestAll.map(l => l.hall_effect || 0));
+                const maxCurr = Math.max(...latestAll.map(l => l.current || 0));
+                document.getElementById('kpi-vib').innerText = `${maxVib.toFixed(2)} g`;
+                document.getElementById('kpi-hall').innerText = `${Math.round(maxRpm)} RPM`;
+                document.getElementById('kpi-curr').innerText = `${maxCurr.toFixed(1)} A`;
+            }
+        }
+
+        // COM Port Enumeration & Connection Management
+        async function scanComPorts() {
+            const select = document.getElementById('com-port-select');
+            if (!select) return;
+            try {
+                const res = await fetch('/api/com_ports');
+                const data = await res.json();
+                select.innerHTML = '';
+                const portsList = data.details || [];
+                let hasActiveSelection = false;
+                if (portsList.length > 0) {
+                    portsList.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.port;
+                        opt.innerText = p.label;
+                        if (data.active_port && p.port === data.active_port) {
+                            opt.selected = true;
+                            hasActiveSelection = true;
+                        }
+                        select.appendChild(opt);
+                    });
+
+                    // If no active port, select the first physical hardware port if available
+                    if (!hasActiveSelection) {
+                        const physicalPort = portsList.find(p => !p.is_mock && p.port !== "MOCK");
+                        if (physicalPort) {
+                            select.value = physicalPort.port;
+                        } else {
+                            select.value = portsList[0].port;
+                        }
+                    }
+                } else {
+                    const opt = document.createElement('option');
+                    opt.value = "MOCK";
+                    opt.innerText = "MOCK_SIMULATION (Virtual ESP32 Gateway)";
+                    opt.selected = true;
+                    select.appendChild(opt);
+                }
+            } catch (err) {
+                console.error("Error scanning COM ports:", err);
+                select.innerHTML = '<option value="MOCK" selected>MOCK_SIMULATION (Virtual ESP32 Gateway)</option>';
+            }
+        }
+
+        async function toggleComConnection() {
+            const select = document.getElementById('com-port-select');
+            const baudSelect = document.getElementById('baud-rate-select');
+            const port = select.value || "MOCK";
+            const baud = baudSelect.value;
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+            if (isGatewayConnected) {
+                try {
+                    const res = await fetch('/api/com_ports/disconnect', {
+                        method: 'POST',
+                        headers: { 'X-CSRF-Token': csrfToken, 'Content-Type': 'application/json' }
+                    });
+                    const d = await res.json();
+                    showAlert(d.message || "Disconnected from hardware / mock gateway", "info");
+                    refreshDashboard();
+                } catch (e) {
+                    showAlert("Error disconnecting COM port", "error");
+                }
+            } else {
+                try {
+                    const res = await fetch('/api/com_ports/connect', {
+                        method: 'POST',
+                        headers: { 'X-CSRF-Token': csrfToken, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ port: port, baud: baud })
+                    });
+                    const d = await res.json();
+                    if (d.success) {
+                        showAlert(d.message || `Connected to ${port} @ ${baud} baud`, "success");
+                    } else {
+                        showAlert(d.error || `Failed to connect to ${port}`, "error");
+                    }
+                    refreshDashboard();
+                } catch (e) {
+                    showAlert("COM port connection request failed", "error");
+                }
+            }
+        }
+
+        // Mock Topology Controls
+        async function setMockSlaveCount(n) {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            showAlert(`Reconfiguring mock topology to ${n} dynamic slaves...`, 'info');
+            try {
+                const res = await fetch('/api/mock/configure', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrfToken, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ num_slaves: n })
+                });
+                const d = await res.json();
+                if (d.success) {
+                    showAlert(`Mock topology configured: ${n} active slaves with random sensor channels.`, 'success');
+                    refreshDashboard();
+                }
+            } catch (e) {
+                showAlert('Failed to configure mock slave count', 'error');
+            }
+        }
+
+        // Hardware Node Action Handlers
+        async function isolateSlave(devId) {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            try {
+                const res = await fetch('/api/device/isolate', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrfToken, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_id: devId })
+                });
+                const d = await res.json();
+                if (d.success) showAlert(`QUARANTINE: Node ${devId} micro-segmented and isolated.`, 'error');
+                refreshDashboard();
+            } catch (e) {
+                showAlert(`Failed to isolate ${devId}`, 'error');
+            }
+        }
+
+        async function resetSlave(devId) {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            try {
+                const res = await fetch('/api/device/reset', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrfToken, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_id: devId })
+                });
+                const d = await res.json();
+                if (d.success) showAlert(`RESET: Hardware reset command dispatched to ${devId}.`, 'info');
+                refreshDashboard();
+            } catch (e) {
+                showAlert(`Failed to reset ${devId}`, 'error');
+            }
+        }
+
+        async function clearSlave(devId) {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            try {
+                const res = await fetch('/api/device/clear', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrfToken, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_id: devId })
+                });
+                const d = await res.json();
+                if (d.success) showAlert(`CLEAR: Alarms and trip registers cleared on ${devId}.`, 'success');
+                refreshDashboard();
+            } catch (e) {
+                showAlert(`Failed to clear alarms on ${devId}`, 'error');
+            }
+        }
+
+        async function pingSlave(devId) {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            showAlert(`Transmitting UART PING to ${devId}...`, 'info');
+            try {
+                const res = await fetch('/api/device/ping', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrfToken, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_id: devId })
+                });
+                const d = await res.json();
+                if (d.success) {
+                    showAlert(`PING ACK: ${d.details}`, 'success');
+                } else {
+                    showAlert(d.error || `PING failed for ${devId}`, 'error');
+                }
+            } catch (e) {
+                showAlert(`PING transmission error on ${devId}`, 'error');
+            }
+        }
+
+        // Native PDF Report Export & Direct Download Fallback
+        async function downloadReport() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            showAlert('Generating Forensic Incident Report PDF...', 'info');
+            try {
+                const res = await fetch('/api/report/save_dialog', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrfToken, 'Content-Type': 'application/json' }
+                });
+                const d = await res.json();
+                if (d.success) {
+                    showAlert(d.message || "Incident Report PDF saved successfully.", 'success');
+                    // Trigger download in browser as well
+                    const a = document.createElement('a');
+                    a.href = d.download_url || '/api/report/download';
+                    a.download = 'aegis_scada_incident_report.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } else if (d.cancelled) {
+                    showAlert("Save dialog closed. Triggering direct browser download...", 'info');
+                    window.location.href = '/api/report/download';
+                } else {
+                    showAlert(d.error || "Falling back to direct download...", 'info');
+                    window.location.href = '/api/report/download';
+                }
+            } catch (e) {
+                showAlert("Opening direct PDF download...", 'info');
+                window.location.href = '/api/report/download';
+            }
+        }
+
+        // Simulated Attack Trigger
+        async function triggerSimAttack(type) {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const targetDev = lastKnownDevices.length > 0 ? lastKnownDevices[0] : "ESP32_001";
+            try {
+                const res = await fetch('/api/attack/simulate', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrfToken, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ attack_type: type, device_id: targetDev })
+                });
+                const d = await res.json();
+                if (d.success) showAlert(`ATTACK INJECTED: ${d.details}`, 'error');
+                refreshDashboard();
+            } catch (e) {
+                showAlert("Failed to inject simulation attack", "error");
+            }
+        }
+
+        // Page Load Init
+        window.addEventListener('DOMContentLoaded', () => {
+            initCyberRiskCharts();
+            scanComPorts();
+            refreshDashboard();
+            setInterval(refreshDashboard, 350);
+            window.addEventListener('resize', () => {
+                redrawHexbin();
+            });
+        });
     </script>
 </body>
 </html>

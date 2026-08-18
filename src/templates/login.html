@@ -1,99 +1,201 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aegis SCADA - Operator Authentication</title>
+    <title>AEGIS ICS // TERMINAL ACCESS CONTROL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        :root {
+            --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        * { box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #000000;
-            color: #f5f5f7;
+            font-family: var(--font-mono);
+            background-color: #09090b;
+            color: #d4d4d8;
+            -webkit-font-smoothing: antialiased;
         }
-        .apple-blur {
-            background: rgba(22, 22, 23, 0.8);
-            backdrop-filter: saturate(180%) blur(20px);
-            -webkit-backdrop-filter: saturate(180%) blur(20px);
+        .terminal-panel {
+            background-color: #121215;
+            border: 1px solid #27272a;
         }
-        .apple-border {
-            border: 1px solid rgba(255, 255, 255, 0.08);
+        .terminal-input {
+            font-family: var(--font-mono);
+            background-color: #09090b;
+            border: 1px solid #27272a;
+            color: #f4f4f5;
         }
-        .apple-input {
-            background-color: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #f5f5f7;
-            transition: all 0.2s ease-in-out;
-        }
-        .apple-input:focus {
-            border-color: rgba(255, 255, 255, 0.4);
-            background-color: rgba(255, 255, 255, 0.08);
+        .terminal-input:focus {
+            border-color: #f59e0b;
             outline: none;
+            box-shadow: 0 0 0 1px #f59e0b;
         }
-        .apple-btn {
-            background-color: #ffffff;
-            color: #000000;
-            font-weight: 500;
-            transition: all 0.2s ease;
+        .btn-amber {
+            background-color: #f59e0b;
+            color: #09090b;
+            font-weight: 700;
+            border: 1px solid #d97706;
         }
-        .apple-btn:hover {
-            background-color: #e8e8ed;
-            transform: scale(0.99);
+        .btn-amber:hover {
+            background-color: #fbbf24;
         }
-        .apple-btn:active {
-            transform: scale(0.97);
+        .status-tag {
+            font-size: 10px;
+            letter-spacing: 0.05em;
+            padding: 2px 6px;
+            border: 1px solid #27272a;
+            background: #18181b;
         }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4 select-none">
-    <div class="w-full max-w-md apple-blur apple-border rounded-2xl p-10 shadow-2xl">
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-semibold tracking-tight text-white mb-2">Aegis SCADA</h1>
-            <p class="text-sm text-[#86868b] tracking-normal font-light">Version 2.0.0 — Secure Control Terminal</p>
+<body class="flex flex-col items-center justify-center min-h-screen p-4 select-none">
+
+    <!-- Terminal Top Header Bar -->
+    <div class="w-full max-w-[460px] mb-2 flex items-center justify-between text-[11px] text-zinc-500 font-mono">
+        <div class="flex items-center gap-2">
+            <span class="inline-block w-2 h-2 bg-emerald-500 rounded-none animate-pulse"></span>
+            <span class="text-zinc-400 font-semibold tracking-wider">AEGIS.ICS // SYS-AUTH</span>
         </div>
+        <div class="flex gap-2">
+            <span class="status-tag text-emerald-400 border-emerald-900 bg-emerald-950/40">CRYPTO:SHA256</span>
+            <span class="status-tag text-amber-400 border-amber-900 bg-amber-950/40">CORE:v2.2.2</span>
+        </div>
+    </div>
+
+    <!-- Login Console Container -->
+    <div class="w-full max-w-[460px] terminal-panel p-6 shadow-2xl">
         
+        <!-- Header -->
+        <div class="border-b border-zinc-800 pb-4 mb-5">
+            <div class="flex items-center justify-between">
+                <h1 class="text-base font-bold text-white tracking-wider flex items-center gap-2">
+                    <span class="text-amber-500">▶</span> OPERATOR IDENTIFICATION
+                </h1>
+                <span class="text-[10px] text-zinc-500 font-mono">ENCL: LEVEL-4</span>
+            </div>
+            <p class="text-xs text-zinc-400 mt-1 font-mono">Zero-Trust Industrial SCADA Security Gateway</p>
+        </div>
+
+        <!-- Dynamic Error / Notice -->
         {% if error %}
-        <div class="bg-red-500/10 border border-red-500/30 text-red-200 text-xs px-4 py-3 rounded-lg mb-6 text-center font-light">
-            {{ error }}
+        <div class="bg-red-950/40 border border-red-800 text-red-400 text-xs px-3 py-2 mb-4 flex items-center gap-2 font-mono">
+            <span class="text-red-500 font-bold">[!]</span>
+            <span>{{ error }}</span>
         </div>
         {% endif %}
-        
-        <form action="/login" method="POST" class="space-y-6">
-            <!-- CSRF Token -->
+
+        <!-- Form -->
+        <form method="POST" action="/login" class="space-y-4 font-mono text-xs">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            
+
             <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider text-[#86868b] mb-2" for="username">Operator ID</label>
-                <input class="w-full apple-input rounded-lg px-4 py-3 text-sm" type="text" id="username" name="username" placeholder="Enter operator name" required autocomplete="username">
+                <label for="username" class="block text-zinc-400 font-semibold mb-1 text-[11px] tracking-wider uppercase">
+                    Operator ID // Username
+                </label>
+                <div class="relative">
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        required 
+                        autocomplete="username" 
+                        placeholder="e.g. admin"
+                        autofocus
+                        class="w-full terminal-input px-3 py-2.5 text-xs text-white placeholder-zinc-600 focus:outline-none"
+                    >
+                    <span class="absolute right-3 top-2.5 text-zinc-600 font-mono text-[10px]">AUTH_UID</span>
+                </div>
             </div>
-            
+
             <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider text-[#86868b] mb-2" for="password">Access Token</label>
-                <input class="w-full apple-input rounded-lg px-4 py-3 text-sm" type="password" id="password" name="password" placeholder="Enter password" required autocomplete="current-password">
+                <label for="password" class="block text-zinc-400 font-semibold mb-1 text-[11px] tracking-wider uppercase">
+                    Security Passcode
+                </label>
+                <div class="relative">
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        required 
+                        autocomplete="current-password" 
+                        placeholder="••••••••••••"
+                        class="w-full terminal-input px-3 py-2.5 text-xs text-white placeholder-zinc-600 focus:outline-none pr-12"
+                    >
+                    <button 
+                        type="button" 
+                        id="toggle-pw" 
+                        tabindex="-1"
+                        class="absolute right-2.5 top-2.5 text-zinc-500 hover:text-zinc-300 font-mono text-[10px] uppercase cursor-pointer"
+                    >
+                        SHOW
+                    </button>
+                </div>
             </div>
-            
-            <div class="border-t border-white/5 pt-5">
-                <label class="block text-xs font-semibold uppercase tracking-wider text-[#86868b] mb-3">Control Station Coordinates</label>
-                <div class="grid grid-cols-3 gap-3">
+
+            <!-- Spatial 3D Vector Section -->
+            <div class="pt-2 border-t border-zinc-800/80">
+                <div class="flex items-center justify-between mb-1.5">
+                    <label class="block text-[11px] font-semibold uppercase text-zinc-400">Control Station Coordinates</label>
+                    <span class="text-[10px] text-zinc-500 font-mono">3-AXIS GPS/LOC</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
                     <div>
-                        <span class="block text-[10px] text-[#86868b] font-medium mb-1 text-center">X COORD</span>
-                        <input class="w-full apple-input rounded-lg px-2 py-2 text-sm text-center" type="number" step="any" name="coord_x" placeholder="0.0" value="12.4" required>
+                        <span class="block text-[10px] text-zinc-500 mb-0.5 text-center font-mono">X-COORD</span>
+                        <input class="w-full terminal-input px-2 py-1.5 text-xs text-center font-mono" type="number" step="any" name="coord_x" placeholder="0.0" value="12.4" required>
                     </div>
                     <div>
-                        <span class="block text-[10px] text-[#86868b] font-medium mb-1 text-center">Y COORD</span>
-                        <input class="w-full apple-input rounded-lg px-2 py-2 text-sm text-center" type="number" step="any" name="coord_y" placeholder="0.0" value="-48.1" required>
+                        <span class="block text-[10px] text-zinc-500 mb-0.5 text-center font-mono">Y-COORD</span>
+                        <input class="w-full terminal-input px-2 py-1.5 text-xs text-center font-mono" type="number" step="any" name="coord_y" placeholder="0.0" value="-48.1" required>
                     </div>
                     <div>
-                        <span class="block text-[10px] text-[#86868b] font-medium mb-1 text-center">Z COORD</span>
-                        <input class="w-full apple-input rounded-lg px-2 py-2 text-sm text-center" type="number" step="any" name="coord_z" placeholder="0.0" value="3.5" required>
+                        <span class="block text-[10px] text-zinc-500 mb-0.5 text-center font-mono">Z-COORD</span>
+                        <input class="w-full terminal-input px-2 py-1.5 text-xs text-center font-mono" type="number" step="any" name="coord_z" placeholder="0.0" value="3.5" required>
                     </div>
                 </div>
             </div>
-            
-            <button class="w-full apple-btn py-3 rounded-lg text-sm tracking-wide shadow-md mt-2" type="submit">
-                Access Terminal
+
+            <!-- Terminal System Info Strip -->
+            <div class="grid grid-cols-2 gap-2 pt-1 pb-1 text-[10px] text-zinc-500 border-t border-b border-zinc-800/80 my-2">
+                <div>SESSION: <span class="text-zinc-400">EPHEMERAL_TLS</span></div>
+                <div>INTEGRITY: <span class="text-emerald-400">ENFORCED</span></div>
+            </div>
+
+            <!-- Submit Button -->
+            <button 
+                type="submit" 
+                class="w-full btn-amber py-2.5 text-xs tracking-wider uppercase transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer font-bold mt-3"
+            >
+                <span>AUTHENTICATE & ENTER SCADA CONSOLE</span>
+                <span>▶</span>
             </button>
         </form>
+
+        <!-- Footer Notice -->
+        <div class="mt-5 pt-3 border-t border-zinc-800 text-[10px] text-zinc-600 flex justify-between">
+            <span>UNAUTHORIZED ACCESS STRICTLY PROHIBITED</span>
+            <span class="font-mono">AEGIS // ICS</span>
+        </div>
     </div>
+
+    <script>
+        const pwInput = document.getElementById('password');
+        const toggleBtn = document.getElementById('toggle-pw');
+        if (toggleBtn && pwInput) {
+            toggleBtn.addEventListener('click', () => {
+                if (pwInput.type === 'password') {
+                    pwInput.type = 'text';
+                    toggleBtn.textContent = 'HIDE';
+                } else {
+                    pwInput.type = 'password';
+                    toggleBtn.textContent = 'SHOW';
+                }
+            });
+        }
+    </script>
 </body>
 </html>
